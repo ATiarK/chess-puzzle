@@ -1,18 +1,8 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { clerkMiddleware } from '@clerk/nextjs/server';
 
-const isProtectedRoute = createRouteMatcher([
-  '/dashboard(.*)',
-  '/create(.*)',
-  '/api/puzzles/create',
-  '/api/puzzles/update(.*)',
-  '/api/puzzles/delete(.*)',
-]);
-
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth.protect();
-  }
-});
+// Resource-based authentication:
+// Protected pages (/create, /dashboard) and API routes call `await auth.protect()` directly.
+export default clerkMiddleware();
 
 export const config = {
   matcher: [
@@ -22,6 +12,5 @@ export const config = {
     '/__clerk/:path*',
     // Always run for API routes
     '/(api|trpc)(.*)',
-
   ],
 };
