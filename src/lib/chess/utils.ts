@@ -1,4 +1,5 @@
 import { Chess, Move } from 'chess.js';
+import { cleanPgn } from '@/lib/chess/edge-cases';
 
 export interface ParsedPgnResult {
   valid: boolean;
@@ -71,8 +72,9 @@ export function isCheck(fen: string): boolean {
 export function parsePgnToMoves(pgnString: string): ParsedPgnResult {
   try {
     const chess = new Chess();
-    // Load PGN
-    chess.loadPgn(pgnString);
+    // Load PGN after cleaning comments, clock annotations, and sub-variations
+    const cleaned = cleanPgn(pgnString);
+    chess.loadPgn(cleaned || pgnString);
     const historyMoves = chess.history();
     if (historyMoves.length === 0) {
       return {

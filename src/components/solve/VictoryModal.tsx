@@ -19,10 +19,21 @@ export function VictoryModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-md p-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl shadow-emerald-500/20 text-center space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+      <div className="relative w-full max-w-md p-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl shadow-emerald-500/20 text-center space-y-6 animate-zoom-in">
         {/* Glow backdrop */}
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-28 h-28 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 blur-2xl opacity-40 pointer-events-none" />
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 blur-2xl opacity-40 pointer-events-none" />
+
+        {/* Celebratory sparkles */}
+        <div className="absolute -top-4 -left-4 text-2xl animate-bounce pointer-events-none">
+          ✨
+        </div>
+        <div className="absolute -top-2 -right-4 text-2xl animate-pulse pointer-events-none">
+          🎉
+        </div>
+        <div className="absolute -bottom-4 right-8 text-xl animate-bounce pointer-events-none">
+          🌟
+        </div>
 
         {/* Trophy Icon */}
         <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-4xl shadow-xl shadow-emerald-500/30">
