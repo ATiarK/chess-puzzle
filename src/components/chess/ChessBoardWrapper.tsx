@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { useBoardTheme } from '@/context/BoardThemeContext';
 import { ThemeCustomizerModal } from './ThemeCustomizerModal';
+import { getCustomPieces } from '@/lib/chess/pieces';
+import { RotateCcw, Palette } from 'lucide-react';
 
 export interface PieceDropArgs {
   sourceSquare: string;
@@ -38,7 +40,7 @@ export function ChessBoardWrapper({
   const [isThemeModalOpen, setIsThemeModalOpen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const { currentTheme, isFlipped, toggleFlip } = useBoardTheme();
+  const { currentTheme, isFlipped, toggleFlip, pieceThemeId } = useBoardTheme();
 
   const effectiveOrientation = isFlipped
     ? boardOrientation === 'white'
@@ -74,6 +76,7 @@ export function ChessBoardWrapper({
             lightSquareStyle: currentTheme.lightSquareStyle,
             darkSquareStyle: currentTheme.darkSquareStyle,
             squareStyles: customSquareStyles,
+            pieces: getCustomPieces(pieceThemeId),
             animationDurationInMs: 200,
             onPieceDrop: onPieceDrop
               ? ({ sourceSquare, targetSquare, piece }) => {
@@ -101,18 +104,20 @@ export function ChessBoardWrapper({
             <button
               type="button"
               onClick={toggleFlip}
-              className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-1 shadow-sm"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-1.5 shadow-sm"
               title="Flip board between White and Black perspective"
             >
-              <span>🔄 Flip ({effectiveOrientation})</span>
+              <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Flip ({effectiveOrientation})</span>
             </button>
             <button
               type="button"
               onClick={() => setIsThemeModalOpen(true)}
-              className="px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-1 shadow-sm"
-              title="Customize board square color theme"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-1.5 shadow-sm"
+              title="Customize board and piece color theme"
             >
-              <span>{currentTheme.icon} Theme</span>
+              <Palette className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Theme</span>
             </button>
           </div>
           <span className="text-[11px] text-slate-500 hidden sm:inline">

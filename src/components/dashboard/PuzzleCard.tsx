@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { whoseTurn } from '@/lib/chess/utils';
 import type { Puzzle } from '@/db/schema';
+import { Edit2, ExternalLink, Share2, Check } from 'lucide-react';
 
 export interface PuzzleCardProps {
   puzzle: Puzzle;
@@ -134,9 +135,10 @@ export function PuzzleCard({ puzzle, onDelete, onUpdateTitle }: PuzzleCardProps)
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="text-slate-500 hover:text-slate-300 text-xs font-medium"
+                className="text-slate-500 hover:text-slate-300 p-1 rounded transition-colors"
+                title="Edit title"
               >
-                ✎
+                <Edit2 className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -148,21 +150,32 @@ export function PuzzleCard({ puzzle, onDelete, onUpdateTitle }: PuzzleCardProps)
             <Link
               href={`/solve/${puzzle.id}`}
               target="_blank"
-              className="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs text-center transition-colors flex items-center justify-center gap-1"
+              className="py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs text-center transition-colors flex items-center justify-center gap-1.5 shadow-sm"
             >
-              <span>Test Solve ↗</span>
+              <span>Test Solve</span>
+              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
             </Link>
 
             <button
               type="button"
               onClick={handleCopyShareLink}
-              className={`py-2 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 ${
+              className={`py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm ${
                 isCopied
-                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                  : 'bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/30'
+                  ? 'bg-emerald-500 text-slate-950'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
               }`}
             >
-              <span>{isCopied ? 'Copied! ✓' : 'Share Link 🔗'}</span>
+              {isCopied ? (
+                <>
+                  <Check className="w-3.5 h-3.5" />
+                  <span>Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Share Link</span>
+                </>
+              )}
             </button>
           </div>
 

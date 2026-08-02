@@ -281,19 +281,19 @@ export function ManualPlacementBoard({ onSelectPosition }: ManualPlacementBoardP
               <div className="flex items-center justify-between">
                 <span>Kings count (1 White, 1 Black):</span>
                 <span className={isKingsValid ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                  {isKingsValid ? '✓ Legal' : `✗ (${whiteKings}W / ${blackKings}B)`}
+                  {isKingsValid ? 'Legal' : `Illegal (${whiteKings}W / ${blackKings}B)`}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Pawns on 1st/8th rank:</span>
                 <span className={!invalidPawns ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                  {!invalidPawns ? '✓ Legal' : '✗ Illegal pawns'}
+                  {!invalidPawns ? 'Legal' : 'Illegal pawns'}
                 </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>FEN structure valid:</span>
                 <span className={isFenValid ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>
-                  {isFenValid ? '✓ Legal' : '✗ Invalid check'}
+                  {isFenValid ? 'Legal' : 'Invalid check'}
                 </span>
               </div>
             </div>

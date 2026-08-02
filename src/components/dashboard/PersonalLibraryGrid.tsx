@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { PuzzleCard } from './PuzzleCard';
 import type { Puzzle } from '@/db/schema';
+import { Crown, Plus } from 'lucide-react';
 
 export interface PersonalLibraryGridProps {
   initialPuzzles: Puzzle[];
@@ -25,8 +26,8 @@ export function PersonalLibraryGrid({ initialPuzzles }: PersonalLibraryGridProps
   if (puzzles.length === 0) {
     return (
       <div className="max-w-md mx-auto my-16 p-8 bg-slate-900/60 rounded-3xl border border-slate-800 text-center space-y-4">
-        <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-3xl">
-          ♟️
+        <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+          <Crown className="w-8 h-8 text-emerald-400" />
         </div>
         <h2 className="text-xl font-bold text-slate-100">
           Your Puzzle Library is Empty
@@ -36,9 +37,10 @@ export function PersonalLibraryGrid({ initialPuzzles }: PersonalLibraryGridProps
         </p>
         <Link
           href="/create"
-          className="inline-block px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-emerald-500/20 hover:brightness-110 transition-all"
+          className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-md transition-all"
         >
-          + Create New Puzzle
+          <Plus className="w-4 h-4" />
+          <span>Create New Puzzle</span>
         </Link>
       </div>
     );

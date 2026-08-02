@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 export interface BoardTheme {
   id: string;
   name: string;
-  icon: string;
+  iconName: string;
   lightSquareStyle: React.CSSProperties;
   darkSquareStyle: React.CSSProperties;
 }
@@ -14,35 +14,35 @@ export const BOARD_THEMES: BoardTheme[] = [
   {
     id: 'emerald',
     name: 'Emerald Green',
-    icon: '🌿',
+    iconName: 'leaf',
     lightSquareStyle: { backgroundColor: '#ebecd0' },
     darkSquareStyle: { backgroundColor: '#739552' },
   },
   {
     id: 'wood',
     name: 'Classic Wood',
-    icon: '🪵',
+    iconName: 'tree',
     lightSquareStyle: { backgroundColor: '#f0d9b5' },
     darkSquareStyle: { backgroundColor: '#b58863' },
   },
   {
     id: 'slate',
     name: 'Slate Midnight',
-    icon: '🌙',
+    iconName: 'moon',
     lightSquareStyle: { backgroundColor: '#cbd5e1' },
     darkSquareStyle: { backgroundColor: '#334155' },
   },
   {
     id: 'ocean',
     name: 'Ocean Blue',
-    icon: '🌊',
+    iconName: 'waves',
     lightSquareStyle: { backgroundColor: '#dee3e6' },
     darkSquareStyle: { backgroundColor: '#8ca2ad' },
   },
   {
     id: 'coral',
     name: 'Coral Glass',
-    icon: '🌸',
+    iconName: 'sparkles',
     lightSquareStyle: { backgroundColor: '#fde2e4' },
     darkSquareStyle: { backgroundColor: '#f48498' },
   },
@@ -50,12 +50,15 @@ export const BOARD_THEMES: BoardTheme[] = [
 
 const THEME_STORAGE_KEY = 'chess_puzzle_board_theme';
 const FLIP_STORAGE_KEY = 'chess_puzzle_board_flipped';
+const PIECE_STORAGE_KEY = 'chess_puzzle_piece_theme';
 
 export interface BoardThemeContextValue {
   currentTheme: BoardTheme;
   setThemeId: (id: string) => void;
   isFlipped: boolean;
   toggleFlip: () => void;
+  pieceThemeId: string;
+  setPieceThemeId: (id: string) => void;
 }
 
 const BoardThemeContext = createContext<BoardThemeContextValue>({
@@ -63,10 +66,13 @@ const BoardThemeContext = createContext<BoardThemeContextValue>({
   setThemeId: () => {},
   isFlipped: false,
   toggleFlip: () => {},
+  pieceThemeId: 'standard',
+  setPieceThemeId: () => {},
 });
 
 export function BoardThemeProvider({ children }: { children: React.ReactNode }) {
   const [themeId, setThemeIdState] = useState<string>('emerald');
+  const [pieceThemeId, setPieceThemeIdState] = useState<string>('standard');
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
 
   useEffect(() => {
@@ -79,6 +85,10 @@ export function BoardThemeProvider({ children }: { children: React.ReactNode }) 
       if (savedFlipped === 'true') {
         setIsFlipped(true);
       }
+      const savedPieceTheme = localStorage.getItem(PIECE_STORAGE_KEY);
+      if (savedPieceTheme) {
+        setPieceThemeIdState(savedPieceTheme);
+      }
     } catch {
       // Ignore storage errors
     }
@@ -88,6 +98,15 @@ export function BoardThemeProvider({ children }: { children: React.ReactNode }) 
     setThemeIdState(id);
     try {
       localStorage.setItem(THEME_STORAGE_KEY, id);
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  const setPieceThemeId = (id: string) => {
+    setPieceThemeIdState(id);
+    try {
+      localStorage.setItem(PIECE_STORAGE_KEY, id);
     } catch {
       // Ignore storage errors
     }
@@ -115,6 +134,8 @@ export function BoardThemeProvider({ children }: { children: React.ReactNode }) 
         setThemeId,
         isFlipped,
         toggleFlip,
+        pieceThemeId,
+        setPieceThemeId,
       }}
     >
       {children}
