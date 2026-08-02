@@ -19,6 +19,14 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: 'Chess Puzzle Sharing App',
   description: 'Create and share tactical chess puzzles from your casual games with friends — no login required to solve.',
+  icons: {
+    icon: [
+      { url: '/icon.png', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png',
+  },
 };
 
 export default function RootLayout({
