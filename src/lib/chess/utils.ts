@@ -140,6 +140,35 @@ export function makeMove(
 }
 
 /**
+ * Executes a SAN or UCI string move and returns the new FEN if legal.
+ */
+export function makeMoveString(
+  currentFen: string,
+  moveString: string
+): MoveResult | null {
+  try {
+    const chess = new Chess(currentFen);
+    const result: Move = chess.move(moveString);
+
+    if (!result) return null;
+
+    const uci = `${result.from}${result.to}${result.promotion || ''}`;
+
+    return {
+      newFen: chess.fen(),
+      san: result.san,
+      uci,
+      isCheck: chess.inCheck(),
+      isCheckmate: chess.isCheckmate(),
+      isCapture: result.flags.includes('c') || result.flags.includes('e'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+
+/**
  * Checks if a candidate move (SAN or UCI string) is legal in currentFen.
  */
 export function isLegalMove(currentFen: string, moveString: string): boolean {
