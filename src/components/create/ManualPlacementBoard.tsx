@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { validateFen } from '@/lib/chess/utils';
+import { useBoardTheme } from '@/context/BoardThemeContext';
+
 
 export interface ManualPlacementBoardProps {
   onSelectPosition: (fen: string) => void;
@@ -31,6 +33,7 @@ export function ManualPlacementBoard({ onSelectPosition }: ManualPlacementBoardP
   const [boardFen, setBoardFen] = useState<string>(STARTING_FEN);
   const [selectedTool, setSelectedTool] = useState<string>('K');
   const [turn, setTurn] = useState<'w' | 'b'>('w');
+  const { isFlipped } = useBoardTheme();
 
   // Convert FEN string to 8x8 array so we can place or clear pieces easily
   const fenPlacementPart = boardFen.split(' ')[0];
@@ -95,6 +98,42 @@ export function ManualPlacementBoard({ onSelectPosition }: ManualPlacementBoardP
     setBoardFen(arrayToFen(grid));
   };
 
+  const handlePieceDrop = ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string }) => {
+    const sourceCoords = squareToCoords(sourceSquare);
+    const targetCoords = squareToCoords(targetSquare);
+    if (!sourceCoords || !targetCoords) return false;
+
+    const grid = fenToArray(fenPlacementPart);
+    const piece = grid[sourceCoords.row][sourceCoords.col];
+    if (!piece) return false;
+
+    grid[sourceCoords.row][sourceCoords.col] = null;
+    grid[targetCoords.row][targetCoords.col] = piece;
+
+    setBoardFen(arrayToFen(grid));
+    return true;
+  };
+
+  const handlePaletteDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const symbol = e.dataTransfer.getData('text/piece');
+    if (!symbol) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    let col = Math.floor((x / rect.width) * 8);
+    let row = Math.floor((y / rect.height) * 8);
+    if (row >= 0 && row < 8 && col >= 0 && col < 8) {
+      if (isFlipped) {
+        row = 7 - row;
+        col = 7 - col;
+      }
+      const grid = fenToArray(fenPlacementPart);
+      grid[row][col] = symbol === 'X' ? null : symbol;
+      setBoardFen(arrayToFen(grid));
+    }
+  };
+
   // Update FEN turn when turn toggle changes
   const handleTurnChange = (newTurn: 'w' | 'b') => {
     setTurn(newTurn);
@@ -153,11 +192,18 @@ export function ManualPlacementBoard({ onSelectPosition }: ManualPlacementBoardP
           </div>
         </div>
 
-        <ChessBoardWrapper
-          fen={boardFen}
-          arePiecesDraggable={false}
-          onSquareClick={handleSquareClick}
-        />
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handlePaletteDrop}
+          className="w-full"
+        >
+          <ChessBoardWrapper
+            fen={boardFen}
+            arePiecesDraggable={true}
+            onPieceDrop={handlePieceDrop}
+            onSquareClick={handleSquareClick}
+          />
+        </div>
 
         {/* Turn Selector */}
         <div className="mt-5 p-3 rounded-xl bg-slate-950/60 border border-slate-800 w-full flex items-center justify-between">
@@ -198,7 +244,7 @@ export function ManualPlacementBoard({ onSelectPosition }: ManualPlacementBoardP
             Piece Placement Palette
           </h3>
           <p className="text-xs text-slate-400 mb-4">
-            Select a piece tool below, then click squares on the board to place or remove pieces.
+            Select a piece tool to click squares, or drag and drop pieces directly onto the board.
           </p>
 
           <div className="grid grid-cols-2 gap-2">
@@ -208,8 +254,10 @@ export function ManualPlacementBoard({ onSelectPosition }: ManualPlacementBoardP
                 <button
                   key={tool.symbol}
                   type="button"
+                  draggable
+                  onDragStart={(e) => e.dataTransfer.setData('text/piece', tool.symbol)}
                   onClick={() => setSelectedTool(tool.symbol)}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border transition-all ${
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium border transition-all cursor-grab active:cursor-grabbing ${
                     isSelected
                       ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 font-bold'
                       : 'bg-slate-950/60 border-slate-800/80 text-slate-300 hover:bg-slate-800/60'

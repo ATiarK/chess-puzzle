@@ -8,6 +8,7 @@ import {
   UserButton,
 } from '@clerk/nextjs';
 import Link from 'next/link';
+import { BoardThemeProvider } from '@/context/BoardThemeContext';
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -28,7 +29,8 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" className={`${outfit.variable} dark h-full antialiased`}>
         <body className="min-h-full flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-slate-950">
-          <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-900/75 backdrop-blur-md">
+          <BoardThemeProvider>
+            <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-900/75 backdrop-blur-md">
             <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
               <Link
                 href="/"
@@ -65,8 +67,10 @@ export default function RootLayout({
           <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
             {children}
           </main>
+          </BoardThemeProvider>
         </body>
       </html>
     </ClerkProvider>
   );
 }
+
