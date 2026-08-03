@@ -15,6 +15,16 @@ export const PIECE_THEMES: PieceThemeOption[] = [
     description: 'Traditional Staunton chess piece set',
   },
   {
+    id: 'cyberpunk',
+    name: 'Cyberpunk Neon',
+    description: 'Futuristic glowing neon 2D silhouettes',
+  },
+  {
+    id: 'nature',
+    name: 'Nature Woodland',
+    description: 'Organic wooden and leaf-accented pieces',
+  },
+  {
     id: 'modern',
     name: 'Modern Neo',
     description: 'High-contrast bold geometric silhouettes',
@@ -34,7 +44,11 @@ const PIECE_NAMES: string[] = [
 /**
  * Helper to render custom piece SVG wrappers for Modern and Minimal themes.
  */
-function renderCustomPieceSvg(piece: string, themeId: string): React.ReactElement {
+function renderCustomPieceSvg(
+  piece: string,
+  themeId: string,
+  squareWidth?: number
+): React.ReactElement {
   const isWhite = piece.startsWith('w');
   const type = piece[1]; // K, Q, R, B, N, P
 
@@ -42,6 +56,10 @@ function renderCustomPieceSvg(piece: string, themeId: string): React.ReactElemen
   const stroke = isWhite ? '#0f172a' : '#94a3b8';
   const strokeWidth = themeId === 'minimal' ? 2.5 : 1.5;
   const opacity = 1;
+
+  const sizeStyle: React.CSSProperties = squareWidth
+    ? { width: `${squareWidth}px`, height: `${squareWidth}px`, opacity }
+    : { width: '100%', height: '100%', opacity };
 
   const getPath = (t: string) => {
     switch (t) {
@@ -64,8 +82,8 @@ function renderCustomPieceSvg(piece: string, themeId: string): React.ReactElemen
   return (
     <svg
       viewBox="0 0 32 32"
-      className="w-full h-full drop-shadow-sm select-none"
-      style={{ opacity }}
+      className="drop-shadow-sm select-none"
+      style={sizeStyle}
     >
       <path
         d={getPath(type)}
@@ -84,6 +102,7 @@ export function getCustomPieces(themeId: string): Record<
   (props?: {
     fill?: string;
     square?: string;
+    squareWidth?: number;
     svgStyle?: React.CSSProperties;
   }) => React.ReactElement
 > | undefined {
@@ -96,12 +115,50 @@ export function getCustomPieces(themeId: string): Record<
     (props?: {
       fill?: string;
       square?: string;
+      squareWidth?: number;
       svgStyle?: React.CSSProperties;
     }) => React.ReactElement
   > = {};
-  PIECE_NAMES.forEach((piece) => {
-    result[piece] = () => renderCustomPieceSvg(piece, themeId);
-  });
+
+  if (themeId === 'cyberpunk' || themeId === 'nature') {
+    PIECE_NAMES.forEach((piece) => {
+      result[piece] = ({ squareWidth }: { squareWidth?: number } = {}) => {
+        const size = squareWidth || 45;
+        // 12% padding ensures tall 2D pieces fit inside the square without overflowing over borders
+        const pad = Math.round(size * 0.12);
+
+        return (
+          <div
+            style={{
+              width: `${size}px`,
+              height: `${size}px`,
+              padding: `${pad}px`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxSizing: 'border-box',
+            }}
+            className="pointer-events-none select-none m-auto"
+          >
+            <img
+              src={`/pieces/${themeId}/${piece}.png`}
+              alt={piece}
+              style={{
+                objectFit: 'contain',
+              }}
+              className="w-full h-full sm:w-[175%] sm:h-[175%] sm:max-w-none sm:max-h-none flex-shrink-0 object-contain pointer-events-none select-none drop-shadow-md m-auto"
+              draggable={false}
+            />
+          </div>
+        );
+      };
+    });
+  } else {
+    PIECE_NAMES.forEach((piece) => {
+      result[piece] = ({ squareWidth }: { squareWidth?: number } = {}) =>
+        renderCustomPieceSvg(piece, themeId, squareWidth);
+    });
+  }
 
   return result;
 }
