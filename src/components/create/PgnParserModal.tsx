@@ -5,7 +5,12 @@ import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { parsePgnToMoves } from '@/lib/chess/utils';
 
 export interface PgnParserModalProps {
-  onSelectPosition: (fen: string, pgn: string) => void;
+  onSelectPosition: (
+    fen: string,
+    pgn: string,
+    preMoveFen?: string | null,
+    lastOpponentMove?: string | null
+  ) => void;
 }
 
 const SAMPLE_PGN = `[Event "Live Chess"]
@@ -169,7 +174,12 @@ export function PgnParserModal({ onSelectPosition }: PgnParserModalProps) {
             <div className="mt-4 pt-4 border-t border-slate-800 flex flex-col gap-2">
               <button
                 type="button"
-                onClick={() => onSelectPosition(currentFen, pgnText)}
+                onClick={() => {
+                  const preMoveFen = currentStep > 0 && parsed ? parsed.fens[currentStep - 1] : null;
+                  const lastOpponentMove =
+                    currentStep > 0 && parsed ? parsed.moves[currentStep - 1] : null;
+                  onSelectPosition(currentFen, pgnText, preMoveFen, lastOpponentMove);
+                }}
                 className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 hover:brightness-110 transition-all"
               >
                 Use This Position (Move {currentStep}) ➔

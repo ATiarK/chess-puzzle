@@ -144,7 +144,7 @@ export function useStockfish(): UseStockfishReturn {
       };
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Could not initialize Stockfish';
-      setError(msg);
+      setTimeout(() => setError(msg), 0);
     }
   }, []);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { Chessboard } from 'react-chessboard';
 import { useBoardTheme } from '@/context/BoardThemeContext';
 import { ThemeCustomizerModal } from './ThemeCustomizerModal';
@@ -36,7 +36,6 @@ export function ChessBoardWrapper({
   showBoardNotation = true,
   showControls = showBoardNotation,
 }: ChessBoardWrapperProps) {
-  const [boardWidth, setBoardWidth] = useState<number>(440);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -47,19 +46,6 @@ export function ChessBoardWrapper({
       ? 'black'
       : 'white'
     : boardOrientation;
-
-  useEffect(() => {
-    function updateSize() {
-      if (containerRef.current) {
-        const width = containerRef.current.clientWidth;
-        setBoardWidth(Math.min(Math.max(width, 240), 600));
-      }
-    }
-
-    updateSize();
-    window.addEventListener('resize', updateSize);
-    return () => window.removeEventListener('resize', updateSize);
-  }, []);
 
   return (
     <div
@@ -77,7 +63,7 @@ export function ChessBoardWrapper({
             darkSquareStyle: currentTheme.darkSquareStyle,
             squareStyles: customSquareStyles,
             pieces: getCustomPieces(pieceThemeId),
-            animationDurationInMs: 200,
+            animationDurationInMs: 300,
             onPieceDrop: onPieceDrop
               ? ({ sourceSquare, targetSquare, piece }) => {
                   if (!targetSquare) return false;

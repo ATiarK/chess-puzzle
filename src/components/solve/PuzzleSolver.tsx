@@ -4,13 +4,21 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { FeedbackBanner, type SolvingStatus } from './FeedbackBanner';
 import { VictoryModal } from './VictoryModal';
-import { makeMove, makeMoveString, whoseTurn } from '@/lib/chess/utils';
+import {
+  makeMove,
+  makeMoveString,
+  whoseTurn,
+  resolveInitialOpponentMove,
+} from '@/lib/chess/utils';
 
 export interface PuzzleSolverProps {
   puzzle: {
     id: string;
     title: string;
     fen: string;
+    pgn?: string | null;
+    preMoveFen?: string | null;
+    lastOpponentMove?: string | null;
     solutionMoves: string[];
     difficulty?: string | null;
   };
@@ -23,23 +31,68 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   const [history, setHistory] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [lastCorrectFen, setLastCorrectFen] = useState<string>(puzzle.fen);
+  const [highlightedSquares, setHighlightedSquares] = useState<
+    Record<string, React.CSSProperties>
+  >({});
+  const [introMoveSan, setIntroMoveSan] = useState<string | undefined>(undefined);
 
   const opponentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const introTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const boardOrientation = whoseTurn(puzzle.fen) === 'black' ? 'black' : 'white';
 
+  const startIntroAnimation = useCallback(() => {
+    if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
+    if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
+
+    const intro = resolveInitialOpponentMove(puzzle);
+    if (intro) {
+      setCurrentFen(intro.preMoveFen);
+      setLastCorrectFen(puzzle.fen);
+      setHighlightedSquares({});
+      setStatus('SHOWING_OPPONENT_MOVE');
+      setIntroMoveSan(intro.moveSan);
+
+      introTimeoutRef.current = setTimeout(() => {
+        setCurrentFen(puzzle.fen);
+        setHighlightedSquares({
+          [intro.fromSquare]: { backgroundColor: 'rgba(234, 179, 8, 0.4)' },
+          [intro.toSquare]: { backgroundColor: 'rgba(234, 179, 8, 0.5)' },
+        });
+        setStatus('IDLE');
+      }, 600);
+    } else {
+      setCurrentFen(puzzle.fen);
+      setLastCorrectFen(puzzle.fen);
+      setHighlightedSquares({});
+      setStatus('IDLE');
+      setIntroMoveSan(undefined);
+    }
+  }, [puzzle]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startIntroAnimation();
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
+      if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
+    };
+  }, [startIntroAnimation]);
+
   const handleResetAll = useCallback(() => {
     if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
-    setCurrentFen(puzzle.fen);
-    setLastCorrectFen(puzzle.fen);
+    if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
     setMoveIndex(0);
-    setStatus('IDLE');
     setHistory([]);
     setIsModalOpen(false);
-  }, [puzzle.fen]);
+    startIntroAnimation();
+  }, [startIntroAnimation]);
 
   const handleRetry = useCallback(() => {
     if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
+    if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
     setCurrentFen(lastCorrectFen);
     setStatus('IDLE');
   }, [lastCorrectFen]);
@@ -54,6 +107,10 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         setCurrentFen(oppResult.newFen);
         setLastCorrectFen(oppResult.newFen);
         setHistory((prev) => [...prev, oppResult.san]);
+        setHighlightedSquares({
+          [oppResult.from]: { backgroundColor: 'rgba(234, 179, 8, 0.4)' },
+          [oppResult.to]: { backgroundColor: 'rgba(234, 179, 8, 0.5)' },
+        });
 
         const nextIndex = targetIndex + 1;
         if (nextIndex >= puzzle.solutionMoves.length) {
@@ -69,7 +126,13 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   );
 
   const handlePieceDrop = (args: { sourceSquare: string; targetSquare: string; piece: string }) => {
-    if (status === 'SOLVED' || status === 'WRONG_MOVE') return false;
+    if (
+      status === 'SOLVED' ||
+      status === 'WRONG_MOVE' ||
+      status === 'SHOWING_OPPONENT_MOVE'
+    ) {
+      return false;
+    }
 
     const result = makeMove(currentFen, {
       from: args.sourceSquare,
@@ -92,6 +155,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     }
 
     // Correct Move!
+    setHighlightedSquares({});
     const newHistory = [...history, result.san];
     setHistory(newHistory);
     setCurrentFen(result.newFen);
@@ -116,6 +180,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   useEffect(() => {
     return () => {
       if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
+      if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
     };
   }, []);
 
@@ -156,14 +221,20 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         onReset={handleResetAll}
         currentStep={Math.floor(moveIndex / 2) + 1}
         totalSteps={Math.ceil(puzzle.solutionMoves.length / 2)}
+        lastMoveSan={introMoveSan}
       />
 
       {/* Interactive Chessboard */}
       <ChessBoardWrapper
         fen={currentFen}
         boardOrientation={boardOrientation}
-        arePiecesDraggable={status !== 'SOLVED' && status !== 'WRONG_MOVE'}
+        arePiecesDraggable={
+          status !== 'SOLVED' &&
+          status !== 'WRONG_MOVE' &&
+          status !== 'SHOWING_OPPONENT_MOVE'
+        }
         onPieceDrop={handlePieceDrop}
+        customSquareStyles={highlightedSquares}
       />
 
       {/* Move History Strip */}

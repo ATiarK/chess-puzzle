@@ -10,10 +10,19 @@ export function CreatePuzzleStudio() {
   const [method, setMethod] = useState<'pgn' | 'manual'>('pgn');
   const [selectedFen, setSelectedFen] = useState<string>('');
   const [selectedPgn, setSelectedPgn] = useState<string | undefined>(undefined);
+  const [preMoveFen, setPreMoveFen] = useState<string | null>(null);
+  const [lastOpponentMove, setLastOpponentMove] = useState<string | null>(null);
 
-  const handlePositionSelected = (fen: string, pgn?: string) => {
+  const handlePositionSelected = (
+    fen: string,
+    pgn?: string,
+    preFen?: string | null,
+    lastMove?: string | null
+  ) => {
     setSelectedFen(fen);
     setSelectedPgn(pgn);
+    setPreMoveFen(preFen || null);
+    setLastOpponentMove(lastMove || null);
     setStep('solution');
   };
 
@@ -86,7 +95,9 @@ export function CreatePuzzleStudio() {
 
           {method === 'pgn' ? (
             <PgnParserModal
-              onSelectPosition={(fen, pgn) => handlePositionSelected(fen, pgn)}
+              onSelectPosition={(fen, pgn, preFen, lastMove) =>
+                handlePositionSelected(fen, pgn, preFen, lastMove)
+              }
             />
           ) : (
             <ManualPlacementBoard
@@ -98,6 +109,8 @@ export function CreatePuzzleStudio() {
         <SolutionConfirmPanel
           initialFen={selectedFen}
           initialPgn={selectedPgn}
+          preMoveFen={preMoveFen}
+          lastOpponentMove={lastOpponentMove}
           onBack={() => setStep('position')}
         />
       )}

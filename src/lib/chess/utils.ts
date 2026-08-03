@@ -13,6 +13,8 @@ export interface MoveResult {
   newFen: string;
   san: string;
   uci: string;
+  from: string;
+  to: string;
   isCheck: boolean;
   isCheckmate: boolean;
   isCapture: boolean;
@@ -132,6 +134,8 @@ export function makeMove(
       newFen: chess.fen(),
       san: result.san,
       uci,
+      from: result.from,
+      to: result.to,
       isCheck: chess.inCheck(),
       isCheckmate: chess.isCheckmate(),
       isCapture: result.flags.includes('c') || result.flags.includes('e'),
@@ -160,6 +164,8 @@ export function makeMoveString(
       newFen: chess.fen(),
       san: result.san,
       uci,
+      from: result.from,
+      to: result.to,
       isCheck: chess.inCheck(),
       isCheckmate: chess.isCheckmate(),
       isCapture: result.flags.includes('c') || result.flags.includes('e'),
@@ -209,4 +215,58 @@ export function normalizeMoveToSan(currentFen: string, moveString: string): stri
   } catch {
     return null;
   }
+}
+
+export interface OpponentIntroMove {
+  preMoveFen: string;
+  moveSan: string;
+  fromSquare: string;
+  toSquare: string;
+}
+
+/**
+ * Resolves the opponent's last move that led to the puzzle position for intro animations.
+ */
+export function resolveInitialOpponentMove(puzzle: {
+  fen: string;
+  pgn?: string | null;
+  preMoveFen?: string | null;
+  lastOpponentMove?: string | null;
+}): OpponentIntroMove | null {
+  const fenMatch = (f1: string, f2: string) =>
+    f1.split(' ').slice(0, 4).join(' ') === f2.split(' ').slice(0, 4).join(' ');
+
+  if (puzzle.preMoveFen && puzzle.lastOpponentMove) {
+    const res = makeMoveString(puzzle.preMoveFen, puzzle.lastOpponentMove);
+    if (res) {
+      return {
+        preMoveFen: puzzle.preMoveFen,
+        moveSan: res.san,
+        fromSquare: res.from,
+        toSquare: res.to,
+      };
+    }
+  }
+
+  if (puzzle.pgn) {
+    const parsed = parsePgnToMoves(puzzle.pgn);
+    if (parsed.valid && parsed.fens.length > 1) {
+      const idx = parsed.fens.findIndex((f) => fenMatch(f, puzzle.fen));
+      if (idx > 0) {
+        const preFen = parsed.fens[idx - 1];
+        const moveStr = parsed.moves[idx - 1];
+        const res = makeMoveString(preFen, moveStr);
+        if (res) {
+          return {
+            preMoveFen: preFen,
+            moveSan: res.san,
+            fromSquare: res.from,
+            toSquare: res.to,
+          };
+        }
+      }
+    }
+  }
+
+  return null;
 }

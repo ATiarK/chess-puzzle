@@ -76,22 +76,25 @@ export function BoardThemeProvider({ children }: { children: React.ReactNode }) 
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
 
   useEffect(() => {
-    try {
-      const savedThemeId = localStorage.getItem(THEME_STORAGE_KEY);
-      if (savedThemeId && BOARD_THEMES.some((t) => t.id === savedThemeId)) {
-        setThemeIdState(savedThemeId);
+    const timer = setTimeout(() => {
+      try {
+        const savedThemeId = localStorage.getItem(THEME_STORAGE_KEY);
+        if (savedThemeId && BOARD_THEMES.some((t) => t.id === savedThemeId)) {
+          setThemeIdState(savedThemeId);
+        }
+        const savedFlipped = localStorage.getItem(FLIP_STORAGE_KEY);
+        if (savedFlipped === 'true') {
+          setIsFlipped(true);
+        }
+        const savedPieceTheme = localStorage.getItem(PIECE_STORAGE_KEY);
+        if (savedPieceTheme) {
+          setPieceThemeIdState(savedPieceTheme);
+        }
+      } catch {
+        // Ignore storage errors
       }
-      const savedFlipped = localStorage.getItem(FLIP_STORAGE_KEY);
-      if (savedFlipped === 'true') {
-        setIsFlipped(true);
-      }
-      const savedPieceTheme = localStorage.getItem(PIECE_STORAGE_KEY);
-      if (savedPieceTheme) {
-        setPieceThemeIdState(savedPieceTheme);
-      }
-    } catch {
-      // Ignore storage errors
-    }
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const setThemeId = (id: string) => {
