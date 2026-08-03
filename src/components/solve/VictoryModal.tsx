@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { Trophy, Sparkles, ArrowRight, Plus } from 'lucide-react';
 
 export interface VictoryModalProps {
   isOpen: boolean;
@@ -20,24 +21,15 @@ export function VictoryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md p-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl shadow-emerald-500/20 text-center space-y-6 animate-zoom-in">
-        {/* Glow backdrop */}
-        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-32 h-32 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 blur-2xl opacity-40 pointer-events-none" />
-
-        {/* Celebratory sparkles */}
-        <div className="absolute -top-4 -left-4 text-2xl animate-bounce pointer-events-none">
-          ✨
-        </div>
-        <div className="absolute -top-2 -right-4 text-2xl animate-pulse pointer-events-none">
-          🎉
-        </div>
-        <div className="absolute -bottom-4 right-8 text-xl animate-bounce pointer-events-none">
-          🌟
+      <div className="relative w-full max-w-md p-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl text-center space-y-6 animate-zoom-in">
+        {/* Celebratory sparkles icon background */}
+        <div className="absolute top-4 right-4 text-emerald-400/30 pointer-events-none">
+          <Sparkles className="w-6 h-6 animate-pulse" />
         </div>
 
         {/* Trophy Icon */}
-        <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-4xl shadow-xl shadow-emerald-500/30">
-          🏆
+        <div className="mx-auto w-16 h-16 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-lg">
+          <Trophy className="w-8 h-8" />
         </div>
 
         <div>
@@ -58,17 +50,19 @@ export function VictoryModal({
             <button
               type="button"
               onClick={onSolveAnother}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-extrabold text-sm shadow-lg shadow-emerald-500/20 hover:brightness-110 transition-all"
+              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2"
             >
-              Solve Another Puzzle ➔
+              <span>Solve Another Puzzle</span>
+              <ArrowRight className="w-4 h-4" />
             </button>
           )}
 
           <Link
             href="/create"
-            className="block w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors"
+            className="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition-colors flex items-center justify-center gap-2"
           >
-            Create & Share Your Own Puzzles
+            <Plus className="w-4 h-4 text-slate-400" />
+            <span>Create & Share Your Own Puzzles</span>
           </Link>
 
           <button

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Check, X } from 'lucide-react';
 
 export type SolvingStatus = 'IDLE' | 'CORRECT_STEP' | 'WRONG_MOVE' | 'SOLVED';
 
@@ -21,7 +22,7 @@ export function FeedbackBanner({
 }: FeedbackBannerProps) {
   if (status === 'IDLE') {
     return (
-      <div className="w-full p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs font-medium text-slate-300">
+      <div className="w-full p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs font-semibold text-slate-300">
         <span>
           Tactical Challenge — Move {currentStep} of {totalSteps}
         </span>
@@ -39,7 +40,10 @@ export function FeedbackBanner({
   if (status === 'CORRECT_STEP') {
     return (
       <div className="w-full p-3.5 rounded-xl bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-between text-xs font-bold text-emerald-300 animate-pulse">
-        <span>✓ Correct move! Playing opponent response...</span>
+        <div className="flex items-center gap-2">
+          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>Correct move! Playing opponent response...</span>
+        </div>
         <span>
           Move {currentStep} of {totalSteps}
         </span>
@@ -51,7 +55,8 @@ export function FeedbackBanner({
     return (
       <div className="w-full p-3.5 rounded-xl bg-rose-500/20 border border-rose-500/50 flex items-center justify-between text-xs font-bold text-rose-300">
         <div className="flex items-center gap-2">
-          <span>✗ Incorrect move. That doesn&apos;t solve the puzzle.</span>
+          <X className="w-4 h-4 text-rose-400 shrink-0" />
+          <span>Incorrect move. That doesn&apos;t solve the puzzle.</span>
         </div>
         <div className="flex items-center gap-3">
           <button
