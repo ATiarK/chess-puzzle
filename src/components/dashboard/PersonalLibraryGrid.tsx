@@ -17,9 +17,9 @@ export function PersonalLibraryGrid({ initialPuzzles }: PersonalLibraryGridProps
     setPuzzles((prev) => prev.filter((p) => p.id !== deletedId));
   };
 
-  const handleUpdateTitle = (updatedId: string, newTitle: string) => {
+  const handleUpdatePuzzle = (updatedPuzzle: Puzzle) => {
     setPuzzles((prev) =>
-      prev.map((p) => (p.id === updatedId ? { ...p, title: newTitle } : p))
+      prev.map((p) => (p.id === updatedPuzzle.id ? updatedPuzzle : p))
     );
   };
 
@@ -64,7 +64,7 @@ export function PersonalLibraryGrid({ initialPuzzles }: PersonalLibraryGridProps
             key={puzzle.id}
             puzzle={puzzle}
             onDelete={handleDelete}
-            onUpdateTitle={handleUpdateTitle}
+            onUpdatePuzzle={handleUpdatePuzzle}
           />
         ))}
       </div>

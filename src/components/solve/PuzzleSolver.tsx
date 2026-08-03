@@ -71,8 +71,11 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   }, [puzzle]);
 
   useEffect(() => {
-    startIntroAnimation();
+    const timer = setTimeout(() => {
+      startIntroAnimation();
+    }, 0);
     return () => {
+      clearTimeout(timer);
       if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
       if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
     };

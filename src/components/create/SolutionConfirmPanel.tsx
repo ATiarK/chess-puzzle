@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { useStockfish } from '@/hooks/useStockfish';
 import { makeMove, whoseTurn } from '@/lib/chess/utils';
+import { Sparkles, Play, RotateCcw } from 'lucide-react';
 
 export interface SolutionConfirmPanelProps {
   initialFen: string;
@@ -24,6 +25,15 @@ export function SolutionConfirmPanel({
   const router = useRouter();
   const { evaluatePosition, isEvaluating, lastResult } = useStockfish();
 
+  const [activeTab, setActiveTab] = useState<'solution' | 'intro'>('solution');
+  const [baseFen, setBaseFen] = useState<string>(initialFen);
+  const [effectivePreMoveFen, setEffectivePreMoveFen] = useState<string | null>(
+    preMoveFen || null
+  );
+  const [effectiveLastOpponentMove, setEffectiveLastOpponentMove] = useState<string | null>(
+    lastOpponentMove || null
+  );
+
   const [currentFen, setCurrentFen] = useState<string>(initialFen);
   const [fenHistory, setFenHistory] = useState<string[]>([initialFen]);
   const [solutionMoves, setSolutionMoves] = useState<string[]>([]);
@@ -40,6 +50,30 @@ export function SolutionConfirmPanel({
   }, [currentFen, evaluatePosition]);
 
   const handlePieceDrop = (args: { sourceSquare: string; targetSquare: string; piece: string }) => {
+    if (activeTab === 'intro') {
+      const fromFen = effectivePreMoveFen || baseFen;
+      const result = makeMove(fromFen, {
+        from: args.sourceSquare,
+        to: args.targetSquare,
+        promotion: 'q',
+      });
+      if (!result) {
+        setError('Illegal move for opponent intro.');
+        return false;
+      }
+      setError(null);
+      setEffectivePreMoveFen(fromFen);
+      setEffectiveLastOpponentMove(result.san);
+      setBaseFen(result.newFen);
+
+      // Reset solution line because starting position updated
+      setSolutionMoves([]);
+      setFenHistory([result.newFen]);
+      setCurrentFen(result.newFen);
+      setActiveTab('solution');
+      return true;
+    }
+
     const result = makeMove(currentFen, {
       from: args.sourceSquare,
       to: args.targetSquare,
@@ -51,6 +85,11 @@ export function SolutionConfirmPanel({
     setCurrentFen(result.newFen);
     setFenHistory((prev) => [...prev, result.newFen]);
     return true;
+  };
+
+  const handleClearIntroMove = () => {
+    setEffectiveLastOpponentMove(null);
+    setEffectivePreMoveFen(null);
   };
 
   const handleAdoptEngineMove = () => {
@@ -79,8 +118,8 @@ export function SolutionConfirmPanel({
 
   const handleResetMoves = () => {
     setSolutionMoves([]);
-    setFenHistory([initialFen]);
-    setCurrentFen(initialFen);
+    setFenHistory([baseFen]);
+    setCurrentFen(baseFen);
   };
 
   const handleSavePuzzle = async () => {
@@ -102,10 +141,10 @@ export function SolutionConfirmPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: title.trim(),
-          fen: initialFen,
+          fen: baseFen,
           pgn: initialPgn || null,
-          preMoveFen: preMoveFen || null,
-          lastOpponentMove: lastOpponentMove || null,
+          preMoveFen: effectiveLastOpponentMove ? effectivePreMoveFen : null,
+          lastOpponentMove: effectiveLastOpponentMove || null,
           solutionMoves,
           difficulty,
         }),
@@ -125,15 +164,43 @@ export function SolutionConfirmPanel({
   };
 
   const currentTurn = whoseTurn(currentFen);
+  const boardFenToRender = activeTab === 'intro' ? effectivePreMoveFen || baseFen : currentFen;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       {/* Board & Engine Assistant Column */}
       <div className="lg:col-span-7 bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 flex flex-col items-center">
         <div className="w-full mb-3 flex items-center justify-between text-xs font-medium">
-          <span className="text-slate-400">
-            Record Solution Moves ({currentTurn === 'white' ? 'White' : 'Black'} to move)
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('solution')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${
+                activeTab === 'solution'
+                  ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Play className="w-3.5 h-3.5" />
+              <span>Record Solution ({currentTurn === 'white' ? 'White' : 'Black'})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('intro')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${
+                activeTab === 'intro'
+                  ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>
+                {effectiveLastOpponentMove ? `Intro: ${effectiveLastOpponentMove}` : '+ Add Intro Move'}
+              </span>
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={onBack}
@@ -141,15 +208,28 @@ export function SolutionConfirmPanel({
           >
             ← Change Starting Position
           </button>
-          {lastOpponentMove && (
-            <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold">
-              Intro Opponent Move: {lastOpponentMove}
-            </span>
-          )}
         </div>
 
+        {activeTab === 'intro' && (
+          <div className="w-full mb-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-xs text-amber-200">
+            <span>
+              Drag an opponent piece to set the introductory move leading into this puzzle.
+            </span>
+            {effectiveLastOpponentMove && (
+              <button
+                type="button"
+                onClick={handleClearIntroMove}
+                className="text-amber-400 hover:text-amber-300 font-bold underline flex items-center gap-1"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Clear</span>
+              </button>
+            )}
+          </div>
+        )}
+
         <ChessBoardWrapper
-          fen={currentFen}
+          fen={boardFenToRender}
           arePiecesDraggable={true}
           onPieceDrop={handlePieceDrop}
         />
@@ -167,56 +247,70 @@ export function SolutionConfirmPanel({
                 </span>
               ) : (
                 <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold">
-                  Ready
+                  Ready (Depth 15)
                 </span>
               )}
             </div>
+
             {lastResult ? (
-              <div className="mt-1 flex items-center gap-3">
-                <span className="text-lg font-extrabold text-emerald-400">
-                  {lastResult.evaluationText}
+              <div className="mt-1 flex items-center gap-3 text-xs">
+                <span
+                  className={`font-mono font-bold ${
+                    lastResult.evaluationText.startsWith('-') ? 'text-rose-400' : 'text-emerald-400'
+                  }`}
+                >
+                  Eval: {lastResult.evaluationText}
                 </span>
-                <span className="text-xs text-slate-400">
-                  Best: <strong className="text-slate-200">{lastResult.bestMove || '—'}</strong>
-                </span>
+                {lastResult.bestMove && (
+                  <span className="text-slate-400">
+                    Best: <strong className="text-slate-200">{lastResult.bestMove}</strong>
+                  </span>
+                )}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 mt-1">Calculating best continuation...</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Move pieces to begin engine evaluation...
+              </p>
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleAdoptEngineMove}
-            disabled={!lastResult || !lastResult.bestMove}
-            className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-bold transition-colors disabled:opacity-40"
-          >
-            + Adopt Engine Move
-          </button>
+          {lastResult?.bestMove && (
+            <button
+              type="button"
+              onClick={handleAdoptEngineMove}
+              className="px-3.5 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition-colors"
+            >
+              Adopt Best Move ({lastResult.bestMove})
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Solution Sequence & Save CTA Column */}
-      <div className="lg:col-span-5 bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 flex flex-col justify-between min-h-[540px]">
+      {/* Solution Moves & Puzzle Details Column */}
+      <div className="lg:col-span-5 bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-200 mb-2">
-            Recorded Solution Sequence
-          </h3>
-          <p className="text-xs text-slate-400 mb-3">
-            Play winning moves on the board or adopt Stockfish suggestions.
-          </p>
+          <div className="mb-4">
+            <h3 className="text-base font-extrabold text-slate-100">
+              Recorded Solution Sequence
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Play out the winning tactical moves on the chessboard. The sequence below is what solvers will be tested on.
+            </p>
+          </div>
 
-          {/* Moves box */}
-          <div className="bg-slate-950/60 rounded-xl p-3 border border-slate-800/80 min-h-[140px] max-h-[220px] overflow-y-auto mb-4">
+          {/* Moves List Box */}
+          <div className="min-h-[120px] max-h-[220px] overflow-y-auto p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 mb-4">
             {solutionMoves.length === 0 ? (
-              <p className="text-xs text-slate-500 italic text-center py-8">
-                No solution moves recorded yet. Play a move on the chessboard above!
-              </p>
+              <div className="h-full flex items-center justify-center text-center py-6">
+                <p className="text-xs text-slate-500 font-medium">
+                  No moves recorded yet. Make a move on the board to start!
+                </p>
+              </div>
             ) : (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {solutionMoves.map((move, i) => (
                   <span
-                    key={`${i}-${move}`}
+                    key={i}
                     className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold"
                   >
                     {i + 1}. {move}
