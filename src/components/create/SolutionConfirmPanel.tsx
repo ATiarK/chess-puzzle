@@ -9,12 +9,16 @@ import { makeMove, whoseTurn } from '@/lib/chess/utils';
 export interface SolutionConfirmPanelProps {
   initialFen: string;
   initialPgn?: string;
+  preMoveFen?: string | null;
+  lastOpponentMove?: string | null;
   onBack: () => void;
 }
 
 export function SolutionConfirmPanel({
   initialFen,
   initialPgn,
+  preMoveFen,
+  lastOpponentMove,
   onBack,
 }: SolutionConfirmPanelProps) {
   const router = useRouter();
@@ -100,6 +104,8 @@ export function SolutionConfirmPanel({
           title: title.trim(),
           fen: initialFen,
           pgn: initialPgn || null,
+          preMoveFen: preMoveFen || null,
+          lastOpponentMove: lastOpponentMove || null,
           solutionMoves,
           difficulty,
         }),
@@ -135,6 +141,11 @@ export function SolutionConfirmPanel({
           >
             ← Change Starting Position
           </button>
+          {lastOpponentMove && (
+            <span className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-bold">
+              Intro Opponent Move: {lastOpponentMove}
+            </span>
+          )}
         </div>
 
         <ChessBoardWrapper

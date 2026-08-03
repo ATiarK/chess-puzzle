@@ -8,6 +8,8 @@ export const puzzles = pgTable('puzzles', {
   pgn: text('pgn'),
   solutionMoves: text('solution_moves').array().notNull(),
   difficulty: varchar('difficulty', { length: 32 }).default('normal'),
+  preMoveFen: text('pre_move_fen'),
+  lastOpponentMove: varchar('last_opponent_move', { length: 32 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

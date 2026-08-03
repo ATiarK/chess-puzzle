@@ -77,7 +77,7 @@ export function ChessBoardWrapper({
             darkSquareStyle: currentTheme.darkSquareStyle,
             squareStyles: customSquareStyles,
             pieces: getCustomPieces(pieceThemeId),
-            animationDurationInMs: 200,
+            animationDurationInMs: 300,
             onPieceDrop: onPieceDrop
               ? ({ sourceSquare, targetSquare, piece }) => {
                   if (!targetSquare) return false;

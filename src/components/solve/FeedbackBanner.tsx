@@ -3,7 +3,12 @@
 import React from 'react';
 import { Check, X } from 'lucide-react';
 
-export type SolvingStatus = 'IDLE' | 'CORRECT_STEP' | 'WRONG_MOVE' | 'SOLVED';
+export type SolvingStatus =
+  | 'IDLE'
+  | 'SHOWING_OPPONENT_MOVE'
+  | 'CORRECT_STEP'
+  | 'WRONG_MOVE'
+  | 'SOLVED';
 
 export interface FeedbackBannerProps {
   status: SolvingStatus;
@@ -11,6 +16,7 @@ export interface FeedbackBannerProps {
   onReset: () => void;
   currentStep: number;
   totalSteps: number;
+  lastMoveSan?: string;
 }
 
 export function FeedbackBanner({
@@ -19,12 +25,37 @@ export function FeedbackBanner({
   onReset,
   currentStep,
   totalSteps,
+  lastMoveSan,
 }: FeedbackBannerProps) {
+  if (status === 'SHOWING_OPPONENT_MOVE') {
+    return (
+      <div className="w-full p-3.5 rounded-xl bg-amber-500/20 border border-amber-500/50 flex items-center justify-between text-xs font-bold text-amber-300 animate-pulse">
+        <span>
+          {lastMoveSan
+            ? `Opponent is playing ${lastMoveSan}... Watch the board!`
+            : 'Opponent is playing their move... Watch the board!'}
+        </span>
+        <button
+          type="button"
+          onClick={onReset}
+          className="text-amber-400 hover:text-amber-200 underline font-normal"
+        >
+          Reset Board
+        </button>
+      </div>
+    );
+  }
+
   if (status === 'IDLE') {
     return (
       <div className="w-full p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs font-semibold text-slate-300">
         <span>
           Tactical Challenge — Move {currentStep} of {totalSteps}
+          {lastMoveSan && (
+            <span className="ml-2 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold">
+              Opponent played {lastMoveSan}
+            </span>
+          )}
         </span>
         <button
           type="button"
