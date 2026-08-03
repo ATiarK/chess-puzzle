@@ -41,24 +41,6 @@ A premium, interactive web application for creating, analyzing, and sharing tact
 
 ---
 
-## 📂 Project Structure & Phase Documentation
-
-The complete engineering specifications and phase breakdown are documented in the `./docs` directory:
-
-```
-docs/
-├── chess-puzzle-app-spec.md                # Main comprehensive specification
-└── phases/
-    ├── phase-01-project-setup-and-db.md    # Initial setup, Neon DB, Drizzle schema, Clerk Auth
-    ├── phase-02-chess-engine-and-board-core.md # Chess.js wrappers, Stockfish Web Worker hook
-    ├── phase-03-puzzle-creation-flow.md    # PGN stepper, Manual board palette, Solution Studio
-    ├── phase-04-solving-experience.md      # Public anonymous /solve/[id] page & feedback loop
-    ├── phase-05-personal-library-and-sharing.md # /dashboard library, share link copy, DELETE/PATCH APIs
-    └── phase-06-ui-polish-and-deployment.md # Aesthetics, cleanPgn edge-case handling, Vercel config
-```
-
----
-
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
