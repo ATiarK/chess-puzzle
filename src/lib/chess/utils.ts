@@ -270,3 +270,33 @@ export function resolveInitialOpponentMove(puzzle: {
 
   return null;
 }
+
+/**
+ * Returns the color of the piece at a specific square.
+ */
+export function getPieceAt(fen: string, square: string): { type: string; color: 'white' | 'black' } | null {
+  try {
+    const chess = new Chess(fen);
+    const piece = chess.get(square as any);
+    if (!piece) return null;
+    return {
+      type: piece.type,
+      color: piece.color === 'w' ? 'white' : 'black',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns all valid destination squares a piece at the given square can move to.
+ */
+export function getLegalMovesForSquare(fen: string, square: string): string[] {
+  try {
+    const chess = new Chess(fen);
+    const moves = chess.moves({ square: square as any, verbose: true }) as Move[];
+    return moves.map(m => m.to);
+  } catch {
+    return [];
+  }
+}

@@ -9,6 +9,8 @@ import {
   makeMoveString,
   whoseTurn,
   resolveInitialOpponentMove,
+  getPieceAt,
+  getLegalMovesForSquare,
 } from '@/lib/chess/utils';
 
 export interface PuzzleSolverProps {
@@ -34,6 +36,8 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   const [highlightedSquares, setHighlightedSquares] = useState<
     Record<string, React.CSSProperties>
   >({});
+  const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [introMoveSan, setIntroMoveSan] = useState<string | undefined>(undefined);
 
   const opponentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -50,6 +54,8 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       setCurrentFen(intro.preMoveFen);
       setLastCorrectFen(puzzle.fen);
       setHighlightedSquares({});
+      setOptionSquares({});
+      setSelectedSquare(null);
       setStatus('SHOWING_OPPONENT_MOVE');
       setIntroMoveSan(intro.moveSan);
 
@@ -65,6 +71,8 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       setCurrentFen(puzzle.fen);
       setLastCorrectFen(puzzle.fen);
       setHighlightedSquares({});
+      setOptionSquares({});
+      setSelectedSquare(null);
       setStatus('IDLE');
       setIntroMoveSan(undefined);
     }
@@ -87,6 +95,8 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     setMoveIndex(0);
     setHistory([]);
     setIsModalOpen(false);
+    setSelectedSquare(null);
+    setOptionSquares({});
     startIntroAnimation();
   }, [startIntroAnimation]);
 
@@ -94,6 +104,8 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
     if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
     setCurrentFen(lastCorrectFen);
+    setSelectedSquare(null);
+    setOptionSquares({});
     setStatus('IDLE');
   }, [lastCorrectFen]);
 
@@ -111,6 +123,8 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
           [oppResult.from]: { backgroundColor: 'rgba(234, 179, 8, 0.4)' },
           [oppResult.to]: { backgroundColor: 'rgba(234, 179, 8, 0.5)' },
         });
+        setSelectedSquare(null);
+        setOptionSquares({});
 
         const nextIndex = targetIndex + 1;
         if (nextIndex >= puzzle.solutionMoves.length) {
@@ -133,6 +147,9 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     ) {
       return false;
     }
+
+    setSelectedSquare(null);
+    setOptionSquares({});
 
     const result = makeMove(currentFen, {
       from: args.sourceSquare,
@@ -175,6 +192,68 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     }
 
     return true;
+  };
+
+  const onSquareClick = (square: string) => {
+    if (
+      status === 'SOLVED' ||
+      status === 'WRONG_MOVE' ||
+      status === 'SHOWING_OPPONENT_MOVE'
+    ) {
+      return;
+    }
+
+    // If a square is already selected
+    if (selectedSquare) {
+      if (square === selectedSquare) {
+        // Deselect if clicking the same square
+        setSelectedSquare(null);
+        setOptionSquares({});
+        return;
+      }
+
+      const pieceAtSquare = getPieceAt(currentFen, square);
+      if (pieceAtSquare && pieceAtSquare.color === whoseTurn(currentFen)) {
+        // Change selection to another piece of the same color
+        setSelectedSquare(square);
+        const legalMoves = getLegalMovesForSquare(currentFen, square);
+        const options: Record<string, React.CSSProperties> = {};
+        options[square] = { backgroundColor: 'rgba(255, 255, 0, 0.4)' };
+        legalMoves.forEach((move) => {
+          options[move] = {
+            background: 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
+            borderRadius: '50%',
+          };
+        });
+        setOptionSquares(options);
+        return;
+      }
+
+      // Attempt move
+      const dropArgs = {
+        sourceSquare: selectedSquare,
+        targetSquare: square,
+        piece: getPieceAt(currentFen, selectedSquare)?.type || '',
+      };
+      
+      handlePieceDrop(dropArgs);
+    } else {
+      // No square selected yet
+      const pieceAtSquare = getPieceAt(currentFen, square);
+      if (pieceAtSquare && pieceAtSquare.color === whoseTurn(currentFen)) {
+        setSelectedSquare(square);
+        const legalMoves = getLegalMovesForSquare(currentFen, square);
+        const options: Record<string, React.CSSProperties> = {};
+        options[square] = { backgroundColor: 'rgba(255, 255, 0, 0.4)' };
+        legalMoves.forEach((move) => {
+          options[move] = {
+            background: 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
+            borderRadius: '50%',
+          };
+        });
+        setOptionSquares(options);
+      }
+    }
   };
 
   useEffect(() => {
@@ -234,7 +313,8 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
           status !== 'SHOWING_OPPONENT_MOVE'
         }
         onPieceDrop={handlePieceDrop}
-        customSquareStyles={highlightedSquares}
+        onSquareClick={onSquareClick}
+        customSquareStyles={{ ...highlightedSquares, ...optionSquares }}
       />
 
       {/* Move History Strip */}
