@@ -417,8 +417,6 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       <FeedbackBanner
         status={status}
         onRetry={handleRetry}
-        onReset={handleResetAll}
-        onGiveUp={status !== 'SOLVED' && status !== 'GAVE_UP' ? handleGiveUp : undefined}
         currentStep={Math.floor(moveIndex / 2) + 1}
         totalSteps={Math.ceil(puzzle.solutionMoves.length / 2)}
         lastMoveSan={introMoveSan}

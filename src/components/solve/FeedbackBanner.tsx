@@ -15,8 +15,6 @@ export type SolvingStatus =
 export interface FeedbackBannerProps {
   status: SolvingStatus;
   onRetry: () => void;
-  onReset: () => void;
-  onGiveUp?: () => void;
   currentStep: number;
   totalSteps: number;
   lastMoveSan?: string;
@@ -25,8 +23,6 @@ export interface FeedbackBannerProps {
 export function FeedbackBanner({
   status,
   onRetry,
-  onReset,
-  onGiveUp,
   currentStep,
   totalSteps,
   lastMoveSan,
@@ -39,13 +35,6 @@ export function FeedbackBanner({
             ? `Opponent is playing ${lastMoveSan}... Watch the board!`
             : 'Opponent is playing their move... Watch the board!'}
         </span>
-        <button
-          type="button"
-          onClick={onReset}
-          className="text-amber-400 hover:text-amber-200 underline font-normal"
-        >
-          Reset Board
-        </button>
       </div>
     );
   }
@@ -67,15 +56,6 @@ export function FeedbackBanner({
           >
             Retry Puzzle
           </button>
-          {onGiveUp && (
-            <button
-              type="button"
-              onClick={onGiveUp}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition-colors"
-            >
-              Give Up (Show Solution)
-            </button>
-          )}
         </div>
       </div>
     );
@@ -90,13 +70,6 @@ export function FeedbackBanner({
             You gave up on this puzzle. Use the solution viewer below the board to step through the official moves.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onReset}
-          className="px-3.5 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold transition-all"
-        >
-          Reset Board
-        </button>
       </div>
     );
   }
@@ -112,24 +85,6 @@ export function FeedbackBanner({
             </span>
           )}
         </span>
-        <div className="flex items-center gap-3">
-          {onGiveUp && (
-            <button
-              type="button"
-              onClick={onGiveUp}
-              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
-            >
-              Give Up
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-slate-400 hover:text-slate-200 underline"
-          >
-            Reset Board
-          </button>
-        </div>
       </div>
     );
   }
@@ -163,22 +118,6 @@ export function FeedbackBanner({
           >
             Try Again
           </button>
-          {onGiveUp && (
-            <button
-              type="button"
-              onClick={onGiveUp}
-              className="text-xs text-rose-300/80 hover:text-rose-100 transition-colors"
-            >
-              Give Up
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-rose-300 hover:underline font-normal"
-          >
-            Reset All
-          </button>
         </div>
       </div>
     );
@@ -188,13 +127,6 @@ export function FeedbackBanner({
   return (
     <div className="w-full p-4 rounded-xl bg-gradient-to-r from-emerald-500/30 to-cyan-500/30 border border-emerald-400 flex items-center justify-between text-sm font-extrabold text-emerald-300">
       <span>Brilliant! You solved the puzzle!</span>
-      <button
-        type="button"
-        onClick={onReset}
-        className="text-xs text-slate-300 hover:underline font-medium"
-      >
-        Replay
-      </button>
     </div>
   );
 }
