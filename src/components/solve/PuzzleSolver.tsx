@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { FeedbackBanner, type SolvingStatus } from './FeedbackBanner';
 import { VictoryModal } from './VictoryModal';
+import { useStockfish } from '@/hooks/useStockfish';
 import {
   makeMove,
   makeMoveString,
@@ -25,6 +26,8 @@ export interface PuzzleSolverProps {
 }
 
 export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
+  const { evaluatePosition } = useStockfish();
+
   const [currentFen, setCurrentFen] = useState<string>(puzzle.fen);
   const [moveIndex, setMoveIndex] = useState<number>(0);
   const [status, setStatus] = useState<SolvingStatus>('IDLE');
@@ -35,6 +38,9 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     Record<string, React.CSSProperties>
   >({});
   const [introMoveSan, setIntroMoveSan] = useState<string | undefined>(undefined);
+
+  // For GAVE_UP solution viewer
+  const [solutionStepIndex, setSolutionStepIndex] = useState<number>(0);
 
   const opponentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const introTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,6 +93,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     setMoveIndex(0);
     setHistory([]);
     setIsModalOpen(false);
+    setSolutionStepIndex(0);
     startIntroAnimation();
   }, [startIntroAnimation]);
 
@@ -96,6 +103,55 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     setCurrentFen(lastCorrectFen);
     setStatus('IDLE');
   }, [lastCorrectFen]);
+
+  const handleGiveUp = useCallback(() => {
+    if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
+    if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
+    setStatus('GAVE_UP');
+    setCurrentFen(puzzle.fen);
+    setSolutionStepIndex(0);
+    setHighlightedSquares({});
+  }, [puzzle.fen]);
+
+  const fenAtSolutionStep = useCallback(
+    (stepIndex: number): { fen: string; from?: string; to?: string } => {
+      let fenState = puzzle.fen;
+      let fromSquare: string | undefined;
+      let toSquare: string | undefined;
+      for (let i = 0; i < stepIndex; i++) {
+        const moveSan = puzzle.solutionMoves[i];
+        if (!moveSan) break;
+        const res = makeMoveString(fenState, moveSan);
+        if (res) {
+          fenState = res.newFen;
+          fromSquare = res.from;
+          toSquare = res.to;
+        } else {
+          break;
+        }
+      }
+      return { fen: fenState, from: fromSquare, to: toSquare };
+    },
+    [puzzle.fen, puzzle.solutionMoves]
+  );
+
+  const handleStepSolution = useCallback(
+    (newStep: number) => {
+      const clamped = Math.max(0, Math.min(newStep, puzzle.solutionMoves.length));
+      setSolutionStepIndex(clamped);
+      const { fen: nextFen, from, to } = fenAtSolutionStep(clamped);
+      setCurrentFen(nextFen);
+      if (from && to) {
+        setHighlightedSquares({
+          [from]: { backgroundColor: 'rgba(16, 185, 129, 0.4)' },
+          [to]: { backgroundColor: 'rgba(16, 185, 129, 0.5)' },
+        });
+      } else {
+        setHighlightedSquares({});
+      }
+    },
+    [fenAtSolutionStep, puzzle.solutionMoves.length]
+  );
 
   const playOpponentMove = useCallback(
     (targetIndex: number, fenState: string) => {
@@ -125,13 +181,51 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     [puzzle.solutionMoves]
   );
 
+  const playStockfishReply = useCallback(
+    async (fenState: string) => {
+      try {
+        const line = await evaluatePosition(fenState, 12);
+        if (line && line.bestMove) {
+          const res = makeMoveString(fenState, line.bestMove);
+          if (res) {
+            setCurrentFen(res.newFen);
+            setHistory((prev) => [...prev, res.san]);
+            setHighlightedSquares({
+              [res.from]: { backgroundColor: 'rgba(56, 189, 248, 0.4)' },
+              [res.to]: { backgroundColor: 'rgba(56, 189, 248, 0.5)' },
+            });
+          }
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [evaluatePosition]
+  );
+
   const handlePieceDrop = (args: { sourceSquare: string; targetSquare: string; piece: string }) => {
     if (
       status === 'SOLVED' ||
-      status === 'WRONG_MOVE' ||
-      status === 'SHOWING_OPPONENT_MOVE'
+      status === 'SHOWING_OPPONENT_MOVE' ||
+      status === 'GAVE_UP'
     ) {
       return false;
+    }
+
+    if (status === 'FREE_PLAY') {
+      const result = makeMove(currentFen, {
+        from: args.sourceSquare,
+        to: args.targetSquare,
+      });
+      if (!result) return false;
+
+      setCurrentFen(result.newFen);
+      setHistory((prev) => [...prev, result.san]);
+      setHighlightedSquares({});
+      opponentTimeoutRef.current = setTimeout(() => {
+        playStockfishReply(result.newFen);
+      }, 400);
+      return true;
     }
 
     const result = makeMove(currentFen, {
@@ -142,15 +236,32 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     if (!result) return false;
 
     const expectedMove = puzzle.solutionMoves[moveIndex];
-    if (!expectedMove) return false;
+    if (!expectedMove) {
+      // No more moves in solution, treat as Free Play
+      setCurrentFen(result.newFen);
+      setStatus('FREE_PLAY');
+      setHistory((prev) => [...prev, result.san]);
+      setHighlightedSquares({});
+      opponentTimeoutRef.current = setTimeout(() => {
+        playStockfishReply(result.newFen);
+      }, 400);
+      return true;
+    }
 
     const isSanMatch = result.san === expectedMove;
     const isUciMatch = result.uci === expectedMove.toLowerCase();
     const isMatch = isSanMatch || isUciMatch;
 
     if (!isMatch) {
+      // Diverged from official solution: switch to Free Play Mode against Stockfish!
       setCurrentFen(result.newFen);
-      setStatus('WRONG_MOVE');
+      setStatus('FREE_PLAY');
+      const newHistory = [...history, result.san];
+      setHistory(newHistory);
+      setHighlightedSquares({});
+      opponentTimeoutRef.current = setTimeout(() => {
+        playStockfishReply(result.newFen);
+      }, 400);
       return true;
     }
 
@@ -204,6 +315,15 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          {status !== 'SOLVED' && status !== 'GAVE_UP' && (
+            <button
+              type="button"
+              onClick={handleGiveUp}
+              className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+            >
+              Give Up
+            </button>
+          )}
           <button
             type="button"
             onClick={handleResetAll}
@@ -219,6 +339,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         status={status}
         onRetry={handleRetry}
         onReset={handleResetAll}
+        onGiveUp={status !== 'SOLVED' && status !== 'GAVE_UP' ? handleGiveUp : undefined}
         currentStep={Math.floor(moveIndex / 2) + 1}
         totalSteps={Math.ceil(puzzle.solutionMoves.length / 2)}
         lastMoveSan={introMoveSan}
@@ -230,12 +351,69 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         boardOrientation={boardOrientation}
         arePiecesDraggable={
           status !== 'SOLVED' &&
-          status !== 'WRONG_MOVE' &&
-          status !== 'SHOWING_OPPONENT_MOVE'
+          status !== 'SHOWING_OPPONENT_MOVE' &&
+          status !== 'GAVE_UP'
         }
         onPieceDrop={handlePieceDrop}
         customSquareStyles={highlightedSquares}
       />
+
+      {/* Solution Viewer when GAVE_UP */}
+      {status === 'GAVE_UP' && (
+        <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-slate-100">
+              Official Solution Moves
+            </span>
+            <span className="text-xs text-slate-400">
+              Step {solutionStepIndex} of {puzzle.solutionMoves.length}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {puzzle.solutionMoves.map((san, idx) => (
+              <button
+                key={`${idx}-${san}`}
+                type="button"
+                onClick={() => handleStepSolution(idx + 1)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
+                  idx < solutionStepIndex
+                    ? 'bg-emerald-500/30 border border-emerald-500/50 text-emerald-300'
+                    : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {idx + 1}. {san}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={() => handleStepSolution(solutionStepIndex - 1)}
+              disabled={solutionStepIndex <= 0}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold disabled:opacity-40 transition-colors"
+            >
+              Previous Move
+            </button>
+            <button
+              type="button"
+              onClick={() => handleStepSolution(0)}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
+            >
+              Reset Position
+            </button>
+            <button
+              type="button"
+              onClick={() => handleStepSolution(solutionStepIndex + 1)}
+              disabled={solutionStepIndex >= puzzle.solutionMoves.length}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-xs font-extrabold disabled:opacity-40 transition-all"
+            >
+              Next Move
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Move History Strip */}
       <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800/60 flex items-center justify-between text-xs font-mono">

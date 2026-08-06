@@ -3,11 +3,13 @@
 import React, { useState } from 'react';
 import type { Puzzle } from '@/db/schema';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
+import { useStockfish } from '@/hooks/useStockfish';
 import {
   validateFen,
   resolveInitialOpponentMove,
   whoseTurn,
   makeMove,
+  suggestDifficultyFromEval,
 } from '@/lib/chess/utils';
 import { X, Sparkles, Check, AlertCircle, RotateCcw, Play, LayoutGrid } from 'lucide-react';
 
@@ -57,10 +59,24 @@ export function EditPuzzleModal({
     whoseTurn(puzzle.fen) === 'white' ? 'w' : 'b'
   );
 
+  const { evaluatePosition, isEvaluating } = useStockfish();
   const [title, setTitle] = useState(puzzle.title);
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Master'>(
     (puzzle.difficulty as 'Easy' | 'Medium' | 'Hard' | 'Master') || 'Medium'
   );
+  const [suggestedDifficulty, setSuggestedDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Master' | null>(null);
+
+  const handleSuggestDifficulty = async () => {
+    try {
+      const res = await evaluatePosition(fen, 15);
+      if (res && res.evaluationText) {
+        const suggestion = suggestDifficultyFromEval(res.evaluationText, solutionMoves.length);
+        setSuggestedDifficulty(suggestion);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   // Intro Move state
   const [preMoveFen, setPreMoveFen] = useState<string>(
@@ -373,6 +389,26 @@ export function EditPuzzleModal({
                     {d}
                   </button>
                 ))}
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleSuggestDifficulty}
+                  disabled={isEvaluating}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  Suggest Difficulty (Stockfish)
+                </button>
+
+                {suggestedDifficulty && (
+                  <button
+                    type="button"
+                    onClick={() => setDifficulty(suggestedDifficulty)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition-colors"
+                  >
+                    Suggested: {suggestedDifficulty} (Click to apply)
+                  </button>
+                )}
               </div>
             </div>
           </div>

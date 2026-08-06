@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { useStockfish } from '@/hooks/useStockfish';
-import { makeMove, whoseTurn } from '@/lib/chess/utils';
+import { makeMove, whoseTurn, suggestDifficultyFromEval } from '@/lib/chess/utils';
 import { Sparkles, Play, RotateCcw } from 'lucide-react';
 
 export interface SolutionConfirmPanelProps {
@@ -39,8 +39,21 @@ export function SolutionConfirmPanel({
   const [solutionMoves, setSolutionMoves] = useState<string[]>([]);
   const [title, setTitle] = useState('');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Master'>('Medium');
+  const [suggestedDifficulty, setSuggestedDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Master' | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleSuggestDifficulty = async () => {
+    try {
+      const res = lastResult || (await evaluatePosition(baseFen, 15));
+      if (res && res.evaluationText) {
+        const suggestion = suggestDifficultyFromEval(res.evaluationText, solutionMoves.length);
+        setSuggestedDifficulty(suggestion);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   // Automatically evaluate position whenever currentFen changes
   useEffect(() => {
@@ -374,6 +387,26 @@ export function SolutionConfirmPanel({
                     {level}
                   </button>
                 ))}
+              </div>
+              <div className="mt-2.5 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleSuggestDifficulty}
+                  disabled={isEvaluating}
+                  className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors disabled:opacity-50"
+                >
+                  Suggest Difficulty (Stockfish)
+                </button>
+
+                {suggestedDifficulty && (
+                  <button
+                    type="button"
+                    onClick={() => setDifficulty(suggestedDifficulty)}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold hover:bg-emerald-500/30 transition-colors"
+                  >
+                    Suggested: {suggestedDifficulty} (Click to apply)
+                  </button>
+                )}
               </div>
             </div>
           </div>

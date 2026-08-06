@@ -270,3 +270,28 @@ export function resolveInitialOpponentMove(puzzle: {
 
   return null;
 }
+
+/**
+ * Recommends puzzle difficulty based on Stockfish evaluation text and solution length.
+ */
+export function suggestDifficultyFromEval(
+  evalText: string,
+  solutionLength: number
+): 'Easy' | 'Medium' | 'Hard' | 'Master' {
+  const lowerEval = evalText.toLowerCase();
+
+  if (lowerEval.includes('mate in 1') || lowerEval.includes('mate in 2') || solutionLength <= 1) {
+    return 'Easy';
+  }
+
+  if (lowerEval.includes('mate in 3') || lowerEval.includes('mate in 4') || solutionLength === 2) {
+    return 'Medium';
+  }
+
+  if (lowerEval.includes('mate') || solutionLength === 3 || solutionLength === 4) {
+    return 'Hard';
+  }
+
+  return 'Master';
+}
+
