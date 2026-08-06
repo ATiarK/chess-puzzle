@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { useStockfish } from '@/hooks/useStockfish';
-import { makeMove, whoseTurn, suggestDifficultyFromEval } from '@/lib/chess/utils';
+import { makeMove, whoseTurn, suggestDifficultyFromEval, getPieceAt, getLegalMovesForSquare } from '@/lib/chess/utils';
 import { Sparkles, Play, RotateCcw } from 'lucide-react';
 
 export interface SolutionConfirmPanelProps {
@@ -55,6 +55,14 @@ export function SolutionConfirmPanel({
     }
   };
 
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
+  const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
+
+  useEffect(() => {
+    setSelectedSquare(null);
+    setOptionSquares({});
+  }, [activeTab]);
+
   // Automatically evaluate position whenever currentFen changes
   useEffect(() => {
     evaluatePosition(currentFen, 15).catch(() => {
@@ -63,6 +71,9 @@ export function SolutionConfirmPanel({
   }, [currentFen, evaluatePosition]);
 
   const handlePieceDrop = (args: { sourceSquare: string; targetSquare: string; piece: string }) => {
+    setSelectedSquare(null);
+    setOptionSquares({});
+
     if (activeTab === 'intro') {
       const fromFen = effectivePreMoveFen || baseFen;
       const result = makeMove(fromFen, {
@@ -179,6 +190,58 @@ export function SolutionConfirmPanel({
   const currentTurn = whoseTurn(currentFen);
   const boardFenToRender = activeTab === 'intro' ? effectivePreMoveFen || baseFen : currentFen;
 
+  const handleSquareClick = (square: string) => {
+    const fen = boardFenToRender;
+    const turn = whoseTurn(fen);
+
+    if (selectedSquare) {
+      if (square === selectedSquare) {
+        setSelectedSquare(null);
+        setOptionSquares({});
+        return;
+      }
+
+      const pieceAtSquare = getPieceAt(fen, square);
+      if (pieceAtSquare && pieceAtSquare.color === turn) {
+        setSelectedSquare(square);
+        const legalMoves = getLegalMovesForSquare(fen, square);
+        const options: Record<string, React.CSSProperties> = {};
+        options[square] = { backgroundColor: 'rgba(255, 255, 0, 0.4)' };
+        legalMoves.forEach((move) => {
+          options[move] = {
+            background: 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
+            borderRadius: '50%',
+          };
+        });
+        setOptionSquares(options);
+        return;
+      }
+
+      // Attempt move
+      const dropArgs = {
+        sourceSquare: selectedSquare,
+        targetSquare: square,
+        piece: getPieceAt(fen, selectedSquare)?.type || '',
+      };
+      handlePieceDrop(dropArgs);
+    } else {
+      const pieceAtSquare = getPieceAt(fen, square);
+      if (pieceAtSquare && pieceAtSquare.color === turn) {
+        setSelectedSquare(square);
+        const legalMoves = getLegalMovesForSquare(fen, square);
+        const options: Record<string, React.CSSProperties> = {};
+        options[square] = { backgroundColor: 'rgba(255, 255, 0, 0.4)' };
+        legalMoves.forEach((move) => {
+          options[move] = {
+            background: 'radial-gradient(circle, rgba(0,0,0,.1) 25%, transparent 25%)',
+            borderRadius: '50%',
+          };
+        });
+        setOptionSquares(options);
+      }
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
       {/* Board & Engine Assistant Column */}
@@ -245,6 +308,8 @@ export function SolutionConfirmPanel({
           fen={boardFenToRender}
           arePiecesDraggable={true}
           onPieceDrop={handlePieceDrop}
+          onSquareClick={handleSquareClick}
+          customSquareStyles={optionSquares}
         />
 
         {/* Engine Analysis Banner */}
