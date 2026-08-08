@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { title, fen, pgn, solutionMoves, difficulty, preMoveFen, lastOpponentMove } = body;
+    const { title, fen, pgn, solutionMoves, alternativeSolutions, difficulty, preMoveFen, lastOpponentMove } = body;
 
     if (!title || typeof title !== 'string' || title.trim() === '') {
       return NextResponse.json({ error: 'Puzzle title is required' }, { status: 400 });
@@ -37,6 +37,7 @@ export async function POST(req: Request) {
         fen,
         pgn: pgn || null,
         solutionMoves,
+        alternativeSolutions: Array.isArray(alternativeSolutions) ? alternativeSolutions : [],
         difficulty: difficulty || 'Medium',
         preMoveFen: preMoveFen || null,
         lastOpponentMove: lastOpponentMove || null,

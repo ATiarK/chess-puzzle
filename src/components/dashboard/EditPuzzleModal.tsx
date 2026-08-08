@@ -11,7 +11,7 @@ import {
   makeMove,
   suggestDifficultyFromEval,
 } from '@/lib/chess/utils';
-import { X, Sparkles, Check, AlertCircle, RotateCcw, Play, LayoutGrid } from 'lucide-react';
+import { X, Sparkles, Check, AlertCircle, RotateCcw, Play, LayoutGrid, Plus, Trash2 } from 'lucide-react';
 
 export interface EditPuzzleModalProps {
   puzzle: Puzzle;
@@ -66,18 +66,6 @@ export function EditPuzzleModal({
   );
   const [suggestedDifficulty, setSuggestedDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Master' | null>(null);
 
-  const handleSuggestDifficulty = async () => {
-    try {
-      const res = await evaluatePosition(fen, 15);
-      if (res && res.evaluationText) {
-        const suggestion = suggestDifficultyFromEval(res.evaluationText, solutionMoves.length);
-        setSuggestedDifficulty(suggestion);
-      }
-    } catch {
-      // ignore
-    }
-  };
-
   // Intro Move state
   const [preMoveFen, setPreMoveFen] = useState<string>(
     puzzle.preMoveFen || puzzle.fen
@@ -88,20 +76,53 @@ export function EditPuzzleModal({
 
   // Puzzle starting FEN & Solution state
   const [fen, setFen] = useState<string>(puzzle.fen);
-  const [solutionMoves, setSolutionMoves] = useState<string[]>([
-    ...puzzle.solutionMoves,
-  ]);
-  const [solutionFenHistory, setSolutionFenHistory] = useState<string[]>([
-    puzzle.fen,
-  ]);
-  const [currentSolutionFen, setCurrentSolutionFen] = useState<string>(
-    puzzle.fen
-  );
+
+  const initialAlternative = (puzzle as unknown as { alternativeSolutions?: string[][] }).alternativeSolutions || [];
+  const initialLines = [puzzle.solutionMoves || [], ...initialAlternative];
+
+  const [allLines, setAllLines] = useState<string[][]>(initialLines.length > 0 ? initialLines : [[]]);
+  const [activeLineIndex, setActiveLineIndex] = useState<number>(0);
+
+  // Function to replay moves to build FEN history
+  const buildFenHistoryForLine = (startFen: string, moves: string[]): string[] => {
+    const history = [startFen];
+    let curr = startFen;
+    for (const moveSan of moves) {
+      const res = makeMove(curr, { from: moveSan.slice(0, 2), to: moveSan.slice(2, 4) }); // or makeMoveString
+      if (res) {
+        curr = res.newFen;
+        history.push(curr);
+      } else {
+        break;
+      }
+    }
+    return history;
+  };
+
+  const [lineFenHistories, setLineFenHistories] = useState<string[][]>(() => {
+    return (initialLines.length > 0 ? initialLines : [[]]).map((line) =>
+      buildFenHistoryForLine(puzzle.fen, line)
+    );
+  });
 
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
+
+  const primarySolutionMoves = allLines[0] || [];
+
+  const handleSuggestDifficulty = async () => {
+    try {
+      const res = await evaluatePosition(fen, 15);
+      if (res && res.evaluationText) {
+        const suggestion = suggestDifficultyFromEval(res.evaluationText, primarySolutionMoves.length);
+        setSuggestedDifficulty(suggestion);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   // Board FEN grid manipulation for Tab 1 (Position editor)
   const fenPlacementPart = fen.split(' ')[0];
@@ -167,9 +188,9 @@ export function EditPuzzleModal({
     setFen(newFen);
     setPreMoveFen(newFen);
     setLastOpponentMove('');
-    setSolutionMoves([]);
-    setSolutionFenHistory([newFen]);
-    setCurrentSolutionFen(newFen);
+    setAllLines([[]]);
+    setLineFenHistories([[newFen]]);
+    setActiveLineIndex(0);
   };
 
   const handleTurnChange = (newTurn: 'w' | 'b') => {
@@ -179,9 +200,9 @@ export function EditPuzzleModal({
     setFen(newFen);
     setPreMoveFen(newFen);
     setLastOpponentMove('');
-    setSolutionMoves([]);
-    setSolutionFenHistory([newFen]);
-    setCurrentSolutionFen(newFen);
+    setAllLines([[]]);
+    setLineFenHistories([[newFen]]);
+    setActiveLineIndex(0);
   };
 
   const handleAutoDetectFromPgn = () => {
@@ -192,8 +213,9 @@ export function EditPuzzleModal({
       setLastOpponentMove(detected.moveSan);
       setFen(puzzle.fen);
       const baseFen = puzzle.fen;
-      setSolutionFenHistory([baseFen]);
-      setCurrentSolutionFen(baseFen);
+      setAllLines([[]]);
+      setLineFenHistories([[baseFen]]);
+      setActiveLineIndex(0);
     } else {
       setError(
         'Could not auto-detect intro move from stored PGN. You can play the opponent move directly on the board.'
@@ -223,16 +245,17 @@ export function EditPuzzleModal({
     setLastOpponentMove(res.san);
     setFen(res.newFen);
 
-    setSolutionMoves([]);
-    setSolutionFenHistory([res.newFen]);
-    setCurrentSolutionFen(res.newFen);
+    setAllLines([[]]);
+    setLineFenHistories([[res.newFen]]);
+    setActiveLineIndex(0);
     return true;
   };
 
   // Interactive Piece Drop Handler for Solution Tab
   const handleSolutionPieceDrop = ({ sourceSquare, targetSquare }: { sourceSquare: string; targetSquare: string }): boolean => {
     setError(null);
-    const res = makeMove(currentSolutionFen, {
+    const currentLineFen = lineFenHistories[activeLineIndex]?.[lineFenHistories[activeLineIndex]?.length - 1] || fen;
+    const res = makeMove(currentLineFen, {
       from: sourceSquare,
       to: targetSquare,
       promotion: 'q',
@@ -243,27 +266,65 @@ export function EditPuzzleModal({
       return false;
     }
 
-    const nextMoves = [...solutionMoves, res.san];
-    const nextHistory = [...solutionFenHistory, res.newFen];
-    setSolutionMoves(nextMoves);
-    setSolutionFenHistory(nextHistory);
-    setCurrentSolutionFen(res.newFen);
+    setAllLines((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = [...(next[activeLineIndex] || []), res.san];
+      return next;
+    });
+    setLineFenHistories((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = [...(next[activeLineIndex] || []), res.newFen];
+      return next;
+    });
     return true;
   };
 
   const handleUndoSolutionMove = () => {
-    if (solutionMoves.length === 0) return;
-    const nextMoves = solutionMoves.slice(0, -1);
-    const nextHistory = solutionFenHistory.slice(0, -1);
-    setSolutionMoves(nextMoves);
-    setSolutionFenHistory(nextHistory);
-    setCurrentSolutionFen(nextHistory[nextHistory.length - 1]);
+    const activeMoves = allLines[activeLineIndex] || [];
+    const activeHistory = lineFenHistories[activeLineIndex] || [fen];
+    if (activeMoves.length === 0) return;
+
+    const nextMoves = activeMoves.slice(0, -1);
+    const nextHistory = activeHistory.slice(0, -1);
+
+    setAllLines((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = nextMoves;
+      return next;
+    });
+    setLineFenHistories((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = nextHistory;
+      return next;
+    });
   };
 
   const handleResetSolution = () => {
-    setSolutionMoves([]);
-    setSolutionFenHistory([fen]);
-    setCurrentSolutionFen(fen);
+    setAllLines((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = [];
+      return next;
+    });
+    setLineFenHistories((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = [fen];
+      return next;
+    });
+  };
+
+  const handleAddLine = () => {
+    const newIdx = allLines.length;
+    setAllLines((prev) => [...prev, []]);
+    setLineFenHistories((prev) => [...prev, [fen]]);
+    setActiveLineIndex(newIdx);
+  };
+
+  const handleDeleteLine = (idxToDelete: number) => {
+    if (idxToDelete === 0) return;
+    setAllLines((prev) => prev.filter((_, idx) => idx !== idxToDelete));
+    setLineFenHistories((prev) => prev.filter((_, idx) => idx !== idxToDelete));
+    const nextActive = Math.max(0, activeLineIndex - (activeLineIndex >= idxToDelete ? 1 : 0));
+    setActiveLineIndex(nextActive);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -280,10 +341,13 @@ export function EditPuzzleModal({
       return;
     }
 
-    if (solutionMoves.length === 0) {
-      setError('Please record at least one solution move on the board.');
+    const primaryMoves = allLines[0] || [];
+    if (primaryMoves.length === 0) {
+      setError('Please record at least one solution move for Line 1.');
       return;
     }
+
+    const alternativeSolutions = allLines.slice(1).filter((l) => l.length > 0);
 
     setIsSaving(true);
     try {
@@ -296,7 +360,8 @@ export function EditPuzzleModal({
           fen: fen.trim(),
           preMoveFen: lastOpponentMove ? preMoveFen.trim() : null,
           lastOpponentMove: lastOpponentMove.trim() || null,
-          solutionMoves,
+          solutionMoves: primaryMoves,
+          alternativeSolutions,
         }),
       });
 
@@ -315,6 +380,8 @@ export function EditPuzzleModal({
     }
   };
 
+  const currentSolutionFen = lineFenHistories[activeLineIndex]?.[lineFenHistories[activeLineIndex]?.length - 1] || fen;
+
   const currentBoardFen =
     activeTab === 'intro'
       ? preMoveFen
@@ -323,6 +390,8 @@ export function EditPuzzleModal({
       : fen;
 
   const boardTurn = whoseTurn(currentBoardFen);
+
+  const currentActiveMoves = allLines[activeLineIndex] || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto">
@@ -458,7 +527,7 @@ export function EditPuzzleModal({
               <Play className="w-4 h-4" />
               <span>3. Solution Moves</span>
               <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-slate-950 text-[10px] font-extrabold">
-                {solutionMoves.length}
+                {allLines.map(l => l.length).reduce((a, b) => a + b, 0)}
               </span>
             </button>
           </div>
@@ -563,9 +632,9 @@ export function EditPuzzleModal({
                           setFen(STARTING_FEN);
                           setPreMoveFen(STARTING_FEN);
                           setLastOpponentMove('');
-                          setSolutionMoves([]);
-                          setSolutionFenHistory([STARTING_FEN]);
-                          setCurrentSolutionFen(STARTING_FEN);
+                          setAllLines([[]]);
+                          setLineFenHistories([[STARTING_FEN]]);
+                          setActiveLineIndex(0);
                           setTurn('w');
                         }}
                         className="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors"
@@ -578,9 +647,9 @@ export function EditPuzzleModal({
                           setFen(EMPTY_FEN);
                           setPreMoveFen(EMPTY_FEN);
                           setLastOpponentMove('');
-                          setSolutionMoves([]);
-                          setSolutionFenHistory([EMPTY_FEN]);
-                          setCurrentSolutionFen(EMPTY_FEN);
+                          setAllLines([[]]);
+                          setLineFenHistories([[EMPTY_FEN]]);
+                          setActiveLineIndex(0);
                           setTurn('w');
                         }}
                         className="flex-1 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors"
@@ -643,11 +712,54 @@ export function EditPuzzleModal({
                 <div className="space-y-4">
                   <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
                     <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2">
-                      Recorded Solution Line
+                      Recorded Solution Lines
                     </h4>
-                    {solutionMoves.length > 0 ? (
+
+                    {/* Solution Line Selector Tabs */}
+                    <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                      {allLines.map((line, idx) => (
+                        <div key={idx} className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setActiveLineIndex(idx)}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                              activeLineIndex === idx
+                                ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-sm'
+                                : 'bg-slate-800/80 border border-slate-700/60 text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            <span>{idx === 0 ? 'Line 1' : `Line ${idx + 1}`}</span>
+                            <span className="px-1.5 py-0.2 rounded-md bg-slate-900 text-[10px] text-slate-300 font-mono">
+                              {line.length}
+                            </span>
+                          </button>
+                          {idx > 0 && activeLineIndex === idx && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLine(idx)}
+                              className="p-1 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-300 hover:bg-rose-500/30 transition-colors"
+                              title="Delete line"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={handleAddLine}
+                        className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 text-xs font-bold transition-colors flex items-center gap-1 border border-slate-700/60"
+                        title="Add an alternative solution line"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Line</span>
+                      </button>
+                    </div>
+
+                    {currentActiveMoves.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
-                        {solutionMoves.map((san, idx) => (
+                        {currentActiveMoves.map((san, idx) => (
                           <span
                             key={idx}
                             className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-mono font-bold text-xs"
@@ -658,12 +770,14 @@ export function EditPuzzleModal({
                       </div>
                     ) : (
                       <p className="text-xs text-slate-400">
-                        No moves recorded yet. Drag pieces on the board to play out the winning sequence.
+                        {activeLineIndex === 0
+                          ? 'No moves recorded for Line 1. Drag pieces on the board.'
+                          : `No moves recorded for Line ${activeLineIndex + 1}. Drag pieces on the board.`}
                       </p>
                     )}
                   </div>
 
-                  {solutionMoves.length > 0 && (
+                  {currentActiveMoves.length > 0 && (
                     <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"

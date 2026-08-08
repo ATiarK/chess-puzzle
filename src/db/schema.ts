@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, timestamp, jsonb } from 'drizzle-orm/pg-core';
 
 export const puzzles = pgTable('puzzles', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -7,6 +7,7 @@ export const puzzles = pgTable('puzzles', {
   fen: text('fen').notNull(),
   pgn: text('pgn'),
   solutionMoves: text('solution_moves').array().notNull(),
+  alternativeSolutions: jsonb('alternative_solutions').$type<string[][]>().default([]),
   difficulty: varchar('difficulty', { length: 32 }).default('normal'),
   preMoveFen: text('pre_move_fen'),
   lastOpponentMove: varchar('last_opponent_move', { length: 32 }),
