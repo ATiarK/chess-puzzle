@@ -29,6 +29,7 @@ export async function PATCH(
       preMoveFen,
       lastOpponentMove,
       solutionMoves,
+      alternativeSolutions,
     } = body;
 
     if (title !== undefined && (!title || typeof title !== 'string' || !title.trim())) {
@@ -59,6 +60,9 @@ export async function PATCH(
     if (preMoveFen !== undefined) updateData.preMoveFen = preMoveFen || null;
     if (lastOpponentMove !== undefined) updateData.lastOpponentMove = lastOpponentMove || null;
     if (solutionMoves !== undefined) updateData.solutionMoves = solutionMoves;
+    if (alternativeSolutions !== undefined) {
+      updateData.alternativeSolutions = Array.isArray(alternativeSolutions) ? alternativeSolutions : [];
+    }
 
     const updatedRows = await db
       .update(puzzles)

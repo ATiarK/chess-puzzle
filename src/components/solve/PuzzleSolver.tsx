@@ -23,6 +23,7 @@ export interface PuzzleSolverProps {
     preMoveFen?: string | null;
     lastOpponentMove?: string | null;
     solutionMoves: string[];
+    alternativeSolutions?: string[][] | null;
     difficulty?: string | null;
   };
 }
@@ -30,8 +31,15 @@ export interface PuzzleSolverProps {
 export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   const { evaluatePosition } = useStockfish();
 
+  const allSolutionLines: string[][] = [
+    puzzle.solutionMoves,
+    ...(puzzle.alternativeSolutions || []).filter((l) => Array.isArray(l) && l.length > 0),
+  ];
+
   const [currentFen, setCurrentFen] = useState<string>(puzzle.fen);
   const [moveIndex, setMoveIndex] = useState<number>(0);
+  const [matchingLines, setMatchingLines] = useState<string[][]>(allSolutionLines);
+
   const [status, setStatus] = useState<SolvingStatus>('IDLE');
   const [history, setHistory] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -45,6 +53,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
 
   // For GAVE_UP solution viewer
   const [solutionStepIndex, setSolutionStepIndex] = useState<number>(0);
+  const [viewerLineIndex, setViewerLineIndex] = useState<number>(0);
 
   const opponentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const introTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -99,13 +108,15 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
     if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
     setMoveIndex(0);
+    setMatchingLines(allSolutionLines);
     setHistory([]);
     setIsModalOpen(false);
     setSolutionStepIndex(0);
+    setViewerLineIndex(0);
     setSelectedSquare(null);
     setOptionSquares({});
     startIntroAnimation();
-  }, [startIntroAnimation]);
+  }, [allSolutionLines, startIntroAnimation]);
 
   const handleRetry = useCallback(() => {
     if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
@@ -122,16 +133,19 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     setStatus('GAVE_UP');
     setCurrentFen(puzzle.fen);
     setSolutionStepIndex(0);
+    setViewerLineIndex(0);
     setHighlightedSquares({});
   }, [puzzle.fen]);
 
+  const activeViewerMoves = allSolutionLines[viewerLineIndex] || puzzle.solutionMoves;
+
   const fenAtSolutionStep = useCallback(
-    (stepIndex: number): { fen: string; from?: string; to?: string } => {
+    (stepIndex: number, movesLine: string[]): { fen: string; from?: string; to?: string } => {
       let fenState = puzzle.fen;
       let fromSquare: string | undefined;
       let toSquare: string | undefined;
       for (let i = 0; i < stepIndex; i++) {
-        const moveSan = puzzle.solutionMoves[i];
+        const moveSan = movesLine[i];
         if (!moveSan) break;
         const res = makeMoveString(fenState, moveSan);
         if (res) {
@@ -144,14 +158,16 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       }
       return { fen: fenState, from: fromSquare, to: toSquare };
     },
-    [puzzle.fen, puzzle.solutionMoves]
+    [puzzle.fen]
   );
 
   const handleStepSolution = useCallback(
-    (newStep: number) => {
-      const clamped = Math.max(0, Math.min(newStep, puzzle.solutionMoves.length));
+    (newStep: number, lineIdx = viewerLineIndex) => {
+      const movesLine = allSolutionLines[lineIdx] || puzzle.solutionMoves;
+      const clamped = Math.max(0, Math.min(newStep, movesLine.length));
       setSolutionStepIndex(clamped);
-      const { fen: nextFen, from, to } = fenAtSolutionStep(clamped);
+      setViewerLineIndex(lineIdx);
+      const { fen: nextFen, from, to } = fenAtSolutionStep(clamped, movesLine);
       setCurrentFen(nextFen);
       if (from && to) {
         setHighlightedSquares({
@@ -162,12 +178,12 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         setHighlightedSquares({});
       }
     },
-    [fenAtSolutionStep, puzzle.solutionMoves.length]
+    [allSolutionLines, fenAtSolutionStep, puzzle.solutionMoves, viewerLineIndex]
   );
 
   const playOpponentMove = useCallback(
-    (targetIndex: number, fenState: string) => {
-      const oppMoveStr = puzzle.solutionMoves[targetIndex];
+    (targetIndex: number, fenState: string, activeLine: string[]) => {
+      const oppMoveStr = activeLine[targetIndex];
       if (!oppMoveStr) return;
 
       const oppResult = makeMoveString(fenState, oppMoveStr);
@@ -183,7 +199,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         setOptionSquares({});
 
         const nextIndex = targetIndex + 1;
-        if (nextIndex >= puzzle.solutionMoves.length) {
+        if (nextIndex >= activeLine.length) {
           setStatus('SOLVED');
           setIsModalOpen(true);
         } else {
@@ -192,7 +208,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         }
       }
     },
-    [puzzle.solutionMoves]
+    []
   );
 
   const playStockfishReply = useCallback(
@@ -252,25 +268,15 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
 
     if (!result) return false;
 
-    const expectedMove = puzzle.solutionMoves[moveIndex];
-    if (!expectedMove) {
-      // No more moves in solution, treat as Free Play
-      setCurrentFen(result.newFen);
-      setStatus('FREE_PLAY');
-      setHistory((prev) => [...prev, result.san]);
-      setHighlightedSquares({});
-      opponentTimeoutRef.current = setTimeout(() => {
-        playStockfishReply(result.newFen);
-      }, 400);
-      return true;
-    }
+    // Filter matching lines for current moveIndex
+    const nextMatchingLines = matchingLines.filter((line) => {
+      const expected = line[moveIndex];
+      if (!expected) return false;
+      return result.san === expected || result.uci === expected.toLowerCase();
+    });
 
-    const isSanMatch = result.san === expectedMove;
-    const isUciMatch = result.uci === expectedMove.toLowerCase();
-    const isMatch = isSanMatch || isUciMatch;
-
-    if (!isMatch) {
-      // Diverged from official solution: switch to Free Play Mode against Stockfish!
+    if (nextMatchingLines.length === 0) {
+      // Diverged from all official solutions: switch to Free Play Mode against Stockfish!
       setCurrentFen(result.newFen);
       setStatus('FREE_PLAY');
       const newHistory = [...history, result.san];
@@ -282,7 +288,10 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       return true;
     }
 
-    // Correct Move!
+    // Correct Move matching at least one solution line!
+    setMatchingLines(nextMatchingLines);
+    const chosenLine = nextMatchingLines[0];
+
     setHighlightedSquares({});
     const newHistory = [...history, result.san];
     setHistory(newHistory);
@@ -290,15 +299,15 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     setLastCorrectFen(result.newFen);
 
     const nextIndex = moveIndex + 1;
-    if (nextIndex >= puzzle.solutionMoves.length) {
+    if (nextIndex >= chosenLine.length) {
       setStatus('SOLVED');
       setIsModalOpen(true);
     } else {
       setStatus('CORRECT_STEP');
       setMoveIndex(nextIndex);
-      // Play opponent's reply automatically after 400ms
+      // Play opponent's reply automatically after 400ms using the chosen line
       opponentTimeoutRef.current = setTimeout(() => {
-        playOpponentMove(nextIndex, result.newFen);
+        playOpponentMove(nextIndex, result.newFen, chosenLine);
       }, 400);
     }
 
@@ -418,7 +427,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         status={status}
         onRetry={handleRetry}
         currentStep={Math.floor(moveIndex / 2) + 1}
-        totalSteps={Math.ceil(puzzle.solutionMoves.length / 2)}
+        totalSteps={Math.ceil((matchingLines[0]?.length || puzzle.solutionMoves.length) / 2)}
         lastMoveSan={introMoveSan}
       />
 
@@ -444,16 +453,39 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
               Official Solution Moves
             </span>
             <span className="text-xs text-slate-400">
-              Step {solutionStepIndex} of {puzzle.solutionMoves.length}
+              Step {solutionStepIndex} of {activeViewerMoves.length}
             </span>
           </div>
 
+          {/* Line Selector when multiple solution lines exist */}
+          {allSolutionLines.length > 1 && (
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-800/80">
+              <span className="text-xs font-semibold text-slate-400">Solution Line:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {allSolutionLines.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleStepSolution(0, idx)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      viewerLineIndex === idx
+                        ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {idx === 0 ? 'Line 1 (Primary)' : `Line ${idx + 1}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-1.5">
-            {puzzle.solutionMoves.map((san, idx) => (
+            {activeViewerMoves.map((san, idx) => (
               <button
                 key={`${idx}-${san}`}
                 type="button"
-                onClick={() => handleStepSolution(idx + 1)}
+                onClick={() => handleStepSolution(idx + 1, viewerLineIndex)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all ${
                   idx < solutionStepIndex
                     ? 'bg-emerald-500/30 border border-emerald-500/50 text-emerald-300'
@@ -468,7 +500,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
           <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800">
             <button
               type="button"
-              onClick={() => handleStepSolution(solutionStepIndex - 1)}
+              onClick={() => handleStepSolution(solutionStepIndex - 1, viewerLineIndex)}
               disabled={solutionStepIndex <= 0}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold disabled:opacity-40 transition-colors"
             >
@@ -476,15 +508,15 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
             </button>
             <button
               type="button"
-              onClick={() => handleStepSolution(0)}
+              onClick={() => handleStepSolution(0, viewerLineIndex)}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
             >
               Reset Position
             </button>
             <button
               type="button"
-              onClick={() => handleStepSolution(solutionStepIndex + 1)}
-              disabled={solutionStepIndex >= puzzle.solutionMoves.length}
+              onClick={() => handleStepSolution(solutionStepIndex + 1, viewerLineIndex)}
+              disabled={solutionStepIndex >= activeViewerMoves.length}
               className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-slate-950 text-xs font-extrabold disabled:opacity-40 transition-all"
             >
               Next Move
