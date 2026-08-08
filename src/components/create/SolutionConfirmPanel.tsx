@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ChessBoardWrapper } from '@/components/chess/ChessBoardWrapper';
 import { useStockfish } from '@/hooks/useStockfish';
 import { makeMove, whoseTurn, suggestDifficultyFromEval, getPieceAt, getLegalMovesForSquare } from '@/lib/chess/utils';
-import { Sparkles, Play, RotateCcw } from 'lucide-react';
+import { Sparkles, Play, RotateCcw, Plus, Trash2 } from 'lucide-react';
 
 export interface SolutionConfirmPanelProps {
   initialFen: string;
@@ -35,19 +35,25 @@ export function SolutionConfirmPanel({
   );
 
   const [currentFen, setCurrentFen] = useState<string>(initialFen);
-  const [fenHistory, setFenHistory] = useState<string[]>([initialFen]);
-  const [solutionMoves, setSolutionMoves] = useState<string[]>([]);
+
+  // Solution lines state: index 0 is primary, 1+ are alternative lines
+  const [allLines, setAllLines] = useState<string[][]>([[]]);
+  const [lineFenHistories, setLineFenHistories] = useState<string[][]>([[initialFen]]);
+  const [activeLineIndex, setActiveLineIndex] = useState<number>(0);
+
   const [title, setTitle] = useState('');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Master'>('Medium');
   const [suggestedDifficulty, setSuggestedDifficulty] = useState<'Easy' | 'Medium' | 'Hard' | 'Master' | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const primarySolutionMoves = allLines[0] || [];
+
   const handleSuggestDifficulty = async () => {
     try {
       const res = lastResult || (await evaluatePosition(baseFen, 15));
       if (res && res.evaluationText) {
-        const suggestion = suggestDifficultyFromEval(res.evaluationText, solutionMoves.length);
+        const suggestion = suggestDifficultyFromEval(res.evaluationText, primarySolutionMoves.length);
         setSuggestedDifficulty(suggestion);
       }
     } catch {
@@ -61,7 +67,7 @@ export function SolutionConfirmPanel({
   useEffect(() => {
     setSelectedSquare(null);
     setOptionSquares({});
-  }, [activeTab]);
+  }, [activeTab, activeLineIndex]);
 
   // Automatically evaluate position whenever currentFen changes
   useEffect(() => {
@@ -90,24 +96,34 @@ export function SolutionConfirmPanel({
       setEffectiveLastOpponentMove(result.san);
       setBaseFen(result.newFen);
 
-      // Reset solution line because starting position updated
-      setSolutionMoves([]);
-      setFenHistory([result.newFen]);
+      // Reset solution lines because starting position updated
+      setAllLines([[]]);
+      setLineFenHistories([[result.newFen]]);
+      setActiveLineIndex(0);
       setCurrentFen(result.newFen);
       setActiveTab('solution');
       return true;
     }
 
-    const result = makeMove(currentFen, {
+    const currentLineFen = lineFenHistories[activeLineIndex]?.[lineFenHistories[activeLineIndex]?.length - 1] || baseFen;
+    const result = makeMove(currentLineFen, {
       from: args.sourceSquare,
       to: args.targetSquare,
     });
 
     if (!result) return false;
 
-    setSolutionMoves((prev) => [...prev, result.san]);
+    setAllLines((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = [...(next[activeLineIndex] || []), result.san];
+      return next;
+    });
+    setLineFenHistories((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = [...(next[activeLineIndex] || []), result.newFen];
+      return next;
+    });
     setCurrentFen(result.newFen);
-    setFenHistory((prev) => [...prev, result.newFen]);
     return true;
   };
 
@@ -123,27 +139,80 @@ export function SolutionConfirmPanel({
     const to = lastResult.bestMove.slice(2, 4);
     const promotion = lastResult.bestMove.slice(4, 5) || undefined;
 
-    const result = makeMove(currentFen, { from, to, promotion });
+    const currentLineFen = lineFenHistories[activeLineIndex]?.[lineFenHistories[activeLineIndex]?.length - 1] || baseFen;
+    const result = makeMove(currentLineFen, { from, to, promotion });
     if (result) {
-      setSolutionMoves((prev) => [...prev, result.san]);
+      setAllLines((prev) => {
+        const next = [...prev];
+        next[activeLineIndex] = [...(next[activeLineIndex] || []), result.san];
+        return next;
+      });
+      setLineFenHistories((prev) => {
+        const next = [...prev];
+        next[activeLineIndex] = [...(next[activeLineIndex] || []), result.newFen];
+        return next;
+      });
       setCurrentFen(result.newFen);
-      setFenHistory((prev) => [...prev, result.newFen]);
     }
   };
 
   const handleUndo = () => {
-    if (solutionMoves.length === 0) return;
-    const newMoves = solutionMoves.slice(0, -1);
-    const newHistory = fenHistory.slice(0, -1);
-    setSolutionMoves(newMoves);
-    setFenHistory(newHistory);
+    const activeMoves = allLines[activeLineIndex] || [];
+    const activeHistory = lineFenHistories[activeLineIndex] || [baseFen];
+    if (activeMoves.length === 0) return;
+
+    const newMoves = activeMoves.slice(0, -1);
+    const newHistory = activeHistory.slice(0, -1);
+
+    setAllLines((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = newMoves;
+      return next;
+    });
+    setLineFenHistories((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = newHistory;
+      return next;
+    });
     setCurrentFen(newHistory[newHistory.length - 1]);
   };
 
   const handleResetMoves = () => {
-    setSolutionMoves([]);
-    setFenHistory([baseFen]);
+    setAllLines((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = [];
+      return next;
+    });
+    setLineFenHistories((prev) => {
+      const next = [...prev];
+      next[activeLineIndex] = [baseFen];
+      return next;
+    });
     setCurrentFen(baseFen);
+  };
+
+  const handleAddLine = () => {
+    const newIdx = allLines.length;
+    setAllLines((prev) => [...prev, []]);
+    setLineFenHistories((prev) => [...prev, [baseFen]]);
+    setActiveLineIndex(newIdx);
+    setCurrentFen(baseFen);
+  };
+
+  const handleDeleteLine = (idxToDelete: number) => {
+    if (idxToDelete === 0) return; // Cannot delete primary line
+    setAllLines((prev) => prev.filter((_, idx) => idx !== idxToDelete));
+    setLineFenHistories((prev) => prev.filter((_, idx) => idx !== idxToDelete));
+    const nextActive = Math.max(0, activeLineIndex - (activeLineIndex >= idxToDelete ? 1 : 0));
+    setActiveLineIndex(nextActive);
+    const history = lineFenHistories[nextActive] || [baseFen];
+    setCurrentFen(history[history.length - 1]);
+  };
+
+  const handleSelectLineTab = (idx: number) => {
+    setActiveLineIndex(idx);
+    const history = lineFenHistories[idx] || [baseFen];
+    setCurrentFen(history[history.length - 1]);
   };
 
   const handleSavePuzzle = async () => {
@@ -151,10 +220,14 @@ export function SolutionConfirmPanel({
       setError('Please provide a title for this puzzle.');
       return;
     }
-    if (solutionMoves.length === 0) {
-      setError('Please record at least one solution move.');
+
+    const primaryMoves = allLines[0] || [];
+    if (primaryMoves.length === 0) {
+      setError('Please record at least one solution move for Line 1.');
       return;
     }
+
+    const alternativeSolutions = allLines.slice(1).filter((line) => line.length > 0);
 
     setError(null);
     setIsSaving(true);
@@ -169,7 +242,8 @@ export function SolutionConfirmPanel({
           pgn: initialPgn || null,
           preMoveFen: effectiveLastOpponentMove ? effectivePreMoveFen : null,
           lastOpponentMove: effectiveLastOpponentMove || null,
-          solutionMoves,
+          solutionMoves: primaryMoves,
+          alternativeSolutions,
           difficulty,
         }),
       });
@@ -241,6 +315,8 @@ export function SolutionConfirmPanel({
       }
     }
   };
+
+  const currentActiveMoves = allLines[activeLineIndex] || [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -367,26 +443,72 @@ export function SolutionConfirmPanel({
       {/* Solution Moves & Puzzle Details Column */}
       <div className="lg:col-span-5 bg-slate-900/60 p-5 rounded-2xl border border-slate-800/80 flex flex-col justify-between">
         <div>
-          <div className="mb-4">
-            <h3 className="text-base font-extrabold text-slate-100">
-              Recorded Solution Sequence
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">
-              Play out the winning tactical moves on the chessboard. The sequence below is what solvers will be tested on.
-            </p>
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-100">
+                Recorded Solution Sequence
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Play out winning lines on the board. You can add multiple alternative winning solutions!
+              </p>
+            </div>
+          </div>
+
+          {/* Solution Line Selector Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+            {allLines.map((line, idx) => (
+              <div key={idx} className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleSelectLineTab(idx)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    activeLineIndex === idx
+                      ? 'bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 shadow-sm'
+                      : 'bg-slate-800/80 border border-slate-700/60 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span>{idx === 0 ? 'Line 1 (Primary)' : `Line ${idx + 1}`}</span>
+                  <span className="px-1.5 py-0.2 rounded-md bg-slate-900 text-[10px] text-slate-300 font-mono">
+                    {line.length}
+                  </span>
+                </button>
+                {idx > 0 && activeLineIndex === idx && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteLine(idx)}
+                    className="p-1.5 rounded-lg bg-rose-500/20 border border-rose-500/40 text-rose-300 hover:bg-rose-500/30 transition-colors"
+                    title="Delete alternative line"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+
+            <button
+              type="button"
+              onClick={handleAddLine}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 text-xs font-bold transition-colors flex items-center gap-1 border border-slate-700/60"
+              title="Add an alternative solution line"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Line</span>
+            </button>
           </div>
 
           {/* Moves List Box */}
           <div className="min-h-[120px] max-h-[220px] overflow-y-auto p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 mb-4">
-            {solutionMoves.length === 0 ? (
+            {currentActiveMoves.length === 0 ? (
               <div className="h-full flex items-center justify-center text-center py-6">
                 <p className="text-xs text-slate-500 font-medium">
-                  No moves recorded yet. Make a move on the board to start!
+                  {activeLineIndex === 0
+                    ? 'No moves recorded yet for Line 1. Make moves on the board to start!'
+                    : `No moves recorded yet for Line ${activeLineIndex + 1}. Make moves on the board!`}
                 </p>
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {solutionMoves.map((move, i) => (
+                {currentActiveMoves.map((move, i) => (
                   <span
                     key={i}
                     className="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-bold"
@@ -403,7 +525,7 @@ export function SolutionConfirmPanel({
             <button
               type="button"
               onClick={handleUndo}
-              disabled={solutionMoves.length === 0}
+              disabled={currentActiveMoves.length === 0}
               className="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold disabled:opacity-40 transition-colors"
             >
               Undo Move
@@ -411,10 +533,10 @@ export function SolutionConfirmPanel({
             <button
               type="button"
               onClick={handleResetMoves}
-              disabled={solutionMoves.length === 0}
+              disabled={currentActiveMoves.length === 0}
               className="flex-1 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold disabled:opacity-40 transition-colors"
             >
-              Clear Moves
+              Clear Line
             </button>
           </div>
 
@@ -487,7 +609,7 @@ export function SolutionConfirmPanel({
           <button
             type="button"
             onClick={handleSavePuzzle}
-            disabled={isSaving || solutionMoves.length === 0 || !title.trim()}
+            disabled={isSaving || primarySolutionMoves.length === 0 || !title.trim()}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-extrabold text-sm shadow-xl shadow-emerald-500/20 hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isSaving ? 'Saving to Database...' : 'Save Puzzle to Library ➔'}
