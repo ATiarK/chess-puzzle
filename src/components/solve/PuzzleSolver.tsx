@@ -14,6 +14,15 @@ import {
   getLegalMovesForSquare,
 } from '@/lib/chess/utils';
 
+export type Snapshot = {
+  fen: string;
+  moveIndex: number;
+  matchingLines: string[][];
+  status: SolvingStatus;
+  history: string[];
+  lastCorrectFen: string;
+};
+
 export interface PuzzleSolverProps {
   puzzle: {
     id: string;
@@ -39,6 +48,9 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   const [currentFen, setCurrentFen] = useState<string>(puzzle.fen);
   const [moveIndex, setMoveIndex] = useState<number>(0);
   const [matchingLines, setMatchingLines] = useState<string[][]>(allSolutionLines);
+
+  const [pastSnapshots, setPastSnapshots] = useState<Snapshot[]>([]);
+  const [futureSnapshots, setFutureSnapshots] = useState<Snapshot[]>([]);
 
   const [status, setStatus] = useState<SolvingStatus>('IDLE');
   const [history, setHistory] = useState<string[]>([]);
@@ -115,17 +127,68 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     setViewerLineIndex(0);
     setSelectedSquare(null);
     setOptionSquares({});
+    setPastSnapshots([]);
+    setFutureSnapshots([]);
     startIntroAnimation();
   }, [allSolutionLines, startIntroAnimation]);
 
-  const handleRetry = useCallback(() => {
+  const handleUndo = useCallback(() => {
+    if (pastSnapshots.length === 0) return;
     if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
-    if (introTimeoutRef.current) clearTimeout(introTimeoutRef.current);
-    setCurrentFen(lastCorrectFen);
+    
+    const lastSnapshot = pastSnapshots[pastSnapshots.length - 1];
+    setPastSnapshots(prev => prev.slice(0, -1));
+    setFutureSnapshots(prev => [{
+      fen: currentFen,
+      moveIndex,
+      matchingLines,
+      status,
+      history,
+      lastCorrectFen,
+    }, ...prev]);
+
+    setCurrentFen(lastSnapshot.fen);
+    setMoveIndex(lastSnapshot.moveIndex);
+    setMatchingLines(lastSnapshot.matchingLines);
+    setStatus(lastSnapshot.status);
+    setHistory(lastSnapshot.history);
+    setLastCorrectFen(lastSnapshot.lastCorrectFen);
+    
     setSelectedSquare(null);
     setOptionSquares({});
-    setStatus('IDLE');
-  }, [lastCorrectFen]);
+    setHighlightedSquares({});
+  }, [pastSnapshots, currentFen, moveIndex, matchingLines, status, history, lastCorrectFen]);
+
+  const handleRedo = useCallback(() => {
+    if (futureSnapshots.length === 0) return;
+    if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
+    
+    const nextSnapshot = futureSnapshots[0];
+    setFutureSnapshots(prev => prev.slice(1));
+    setPastSnapshots(prev => [...prev, {
+      fen: currentFen,
+      moveIndex,
+      matchingLines,
+      status,
+      history,
+      lastCorrectFen,
+    }]);
+
+    setCurrentFen(nextSnapshot.fen);
+    setMoveIndex(nextSnapshot.moveIndex);
+    setMatchingLines(nextSnapshot.matchingLines);
+    setStatus(nextSnapshot.status);
+    setHistory(nextSnapshot.history);
+    setLastCorrectFen(nextSnapshot.lastCorrectFen);
+
+    setSelectedSquare(null);
+    setOptionSquares({});
+    setHighlightedSquares({});
+  }, [futureSnapshots, currentFen, moveIndex, matchingLines, status, history, lastCorrectFen]);
+
+  const handleRetry = useCallback(() => {
+    handleUndo();
+  }, [handleUndo]);
 
   const handleGiveUp = useCallback(() => {
     if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
@@ -252,6 +315,9 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       });
       if (!result) return false;
 
+      setPastSnapshots(prev => [...prev, { fen: currentFen, moveIndex, matchingLines, status, history, lastCorrectFen }]);
+      setFutureSnapshots([]);
+
       setCurrentFen(result.newFen);
       setHistory((prev) => [...prev, result.san]);
       setHighlightedSquares({});
@@ -267,6 +333,9 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     });
 
     if (!result) return false;
+
+    setPastSnapshots(prev => [...prev, { fen: currentFen, moveIndex, matchingLines, status, history, lastCorrectFen }]);
+    setFutureSnapshots([]);
 
     // Filter matching lines for current moveIndex
     const nextMatchingLines = matchingLines.filter((line) => {
@@ -443,6 +512,10 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
         onPieceDrop={handlePieceDrop}
         onSquareClick={onSquareClick}
         customSquareStyles={{ ...highlightedSquares, ...optionSquares }}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={pastSnapshots.length > 0 && status !== 'SHOWING_OPPONENT_MOVE' && status !== 'CORRECT_STEP'}
+        canRedo={futureSnapshots.length > 0 && status !== 'SHOWING_OPPONENT_MOVE' && status !== 'CORRECT_STEP'}
       />
 
       {/* Solution Viewer when GAVE_UP */}
