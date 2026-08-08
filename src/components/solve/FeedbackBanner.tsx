@@ -76,15 +76,15 @@ export function FeedbackBanner({
 
   if (status === 'IDLE') {
     return (
-      <div className="w-full p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between text-xs font-semibold text-slate-300">
+      <div className="w-full p-3.5 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col justify-center gap-1.5 text-xs font-semibold text-slate-300">
         <span>
           Tactical Challenge — Move {currentStep} of {totalSteps}
-          {lastMoveSan && (
-            <span className="ml-2 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold">
-              Opponent played {lastMoveSan}
-            </span>
-          )}
         </span>
+        {lastMoveSan && (
+          <div className="w-fit px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold">
+            Opponent played {lastMoveSan}
+          </div>
+        )}
       </div>
     );
   }

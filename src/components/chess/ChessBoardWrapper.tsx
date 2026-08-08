@@ -5,7 +5,7 @@ import { Chessboard } from 'react-chessboard';
 import { useBoardTheme } from '@/context/BoardThemeContext';
 import { ThemeCustomizerModal } from './ThemeCustomizerModal';
 import { getCustomPieces } from '@/lib/chess/pieces';
-import { RotateCcw, Palette } from 'lucide-react';
+import { FlipVertical2, Palette, Undo2, Redo2 } from 'lucide-react';
 
 export interface PieceDropArgs {
   sourceSquare: string;
@@ -23,6 +23,10 @@ export interface ChessBoardWrapperProps {
   className?: string;
   showBoardNotation?: boolean;
   showControls?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }
 
 export function ChessBoardWrapper({
@@ -35,6 +39,10 @@ export function ChessBoardWrapper({
   className = '',
   showBoardNotation = true,
   showControls = showBoardNotation,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: ChessBoardWrapperProps) {
   const [isThemeModalOpen, setIsThemeModalOpen] = useState<boolean>(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -83,32 +91,48 @@ export function ChessBoardWrapper({
         />
       </div>
 
-      {/* Quick Controls Bar (Flip & Theme) */}
+      {/* Quick Controls Bar (Undo/Redo & Flip/Theme) */}
       {showControls && (
         <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs font-semibold text-slate-400">
           <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={toggleFlip}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-1.5 shadow-sm"
-              title="Flip board between White and Black perspective"
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800/80 text-slate-200 transition-colors flex items-center justify-center shadow-sm"
+              title="Undo Move"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Flip ({effectiveOrientation})</span>
+              <Undo2 className="w-3.5 h-3.5 text-slate-300" />
+            </button>
+            <button
+              type="button"
+              onClick={onRedo}
+              disabled={!canRedo}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 disabled:opacity-40 disabled:hover:bg-slate-800/80 text-slate-200 transition-colors flex items-center justify-center shadow-sm"
+              title="Redo Move"
+            >
+              <Redo2 className="w-3.5 h-3.5 text-slate-300" />
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleFlip}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors flex items-center justify-center shadow-sm"
+              title={`Flip Board (Current: ${effectiveOrientation})`}
+            >
+              <FlipVertical2 className="w-3.5 h-3.5 text-emerald-400" />
             </button>
             <button
               type="button"
               onClick={() => setIsThemeModalOpen(true)}
-              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-1.5 shadow-sm"
-              title="Customize board and piece color theme"
+              className="px-2.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-200 transition-colors flex items-center justify-center shadow-sm"
+              title="Customize Theme"
             >
               <Palette className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Theme</span>
             </button>
           </div>
-          <span className="text-[11px] text-slate-500 hidden sm:inline">
-            {arePiecesDraggable ? 'Drag & Drop / Click moves' : 'Click to place'}
-          </span>
         </div>
       )}
 
