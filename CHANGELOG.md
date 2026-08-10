@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.1] - 2026-08-10
+
+### Fixed
+- **Move History Timeline & Click Bug**: Fixed an issue where opponent moves did not preserve state snapshots, causing later move notations (moves 4, 5, 6, etc.) to be unclickable or fail silently.
+- **Closure Stale Delay**: Refactored opponent response callbacks (`playOpponentMove` and `playStockfishReply`) to pass explicit state and history objects, eliminating sluggishness during fast multi-move play.
+
 ## [0.3.0] - 2026-08-09
 
 ### Added
