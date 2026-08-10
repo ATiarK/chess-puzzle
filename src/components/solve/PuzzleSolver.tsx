@@ -186,6 +186,55 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     setHighlightedSquares({});
   }, [futureSnapshots, currentFen, moveIndex, matchingLines, status, history, lastCorrectFen]);
 
+  const jumpToMove = useCallback(
+    (targetIndex: number) => {
+      const currentLength = history.length;
+      const targetLength = targetIndex + 1;
+
+      if (targetLength === currentLength) return;
+
+      if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current);
+
+      const currentStateSnapshot: Snapshot = {
+        fen: currentFen,
+        moveIndex,
+        matchingLines,
+        status,
+        history,
+        lastCorrectFen,
+      };
+
+      const timeline = [...pastSnapshots, currentStateSnapshot, ...futureSnapshots];
+      const targetSnapshot = timeline[targetLength];
+
+      if (!targetSnapshot) return;
+
+      setPastSnapshots(timeline.slice(0, targetLength));
+      setFutureSnapshots(timeline.slice(targetLength + 1));
+
+      setCurrentFen(targetSnapshot.fen);
+      setMoveIndex(targetSnapshot.moveIndex);
+      setMatchingLines(targetSnapshot.matchingLines);
+      setStatus(targetSnapshot.status);
+      setHistory(targetSnapshot.history);
+      setLastCorrectFen(targetSnapshot.lastCorrectFen);
+
+      setSelectedSquare(null);
+      setOptionSquares({});
+      setHighlightedSquares({});
+    },
+    [
+      history,
+      currentFen,
+      moveIndex,
+      matchingLines,
+      status,
+      lastCorrectFen,
+      pastSnapshots,
+      futureSnapshots,
+    ]
+  );
+
   const handleRetry = useCallback(() => {
     handleUndo();
   }, [handleUndo]);
@@ -452,6 +501,16 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
     };
   }, []);
 
+  const fullHistory =
+    futureSnapshots.length > 0
+      ? futureSnapshots[futureSnapshots.length - 1].history
+      : history;
+
+  const groupedMoves: string[][] = [];
+  for (let i = 0; i < fullHistory.length; i += 2) {
+    groupedMoves.push(fullHistory.slice(i, i + 2));
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Puzzle Header Card */}
@@ -599,19 +658,34 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       )}
 
       {/* Move History Strip */}
-      <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800/60 flex items-center justify-between text-xs font-mono">
+      <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-800/60 flex flex-col gap-3 text-xs font-mono">
         <span className="text-slate-400 font-sans font-semibold">Moves Played:</span>
-        <div className="flex flex-wrap gap-1.5">
-          {history.length === 0 ? (
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {groupedMoves.length === 0 ? (
             <span className="text-slate-500 italic">No moves yet</span>
           ) : (
-            history.map((move, idx) => (
-              <span
-                key={`${idx}-${move}`}
-                className="px-2 py-0.5 rounded bg-slate-800 text-slate-200 font-bold"
-              >
-                {idx + 1}. {move}
-              </span>
+            groupedMoves.map((group, groupIdx) => (
+              <div key={groupIdx} className="flex items-center gap-1.5">
+                <span className="text-slate-500 font-bold select-none">{groupIdx + 1}.</span>
+                {group.map((move, moveIdx) => {
+                  const globalIdx = groupIdx * 2 + moveIdx;
+                  const isFuture = globalIdx >= history.length;
+                  return (
+                    <button
+                      key={globalIdx}
+                      type="button"
+                      onClick={() => jumpToMove(globalIdx)}
+                      className={`px-2 py-0.5 rounded font-bold transition-colors ${
+                        isFuture
+                          ? 'bg-slate-800/40 text-slate-500 hover:bg-slate-800 hover:text-slate-400'
+                          : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                      }`}
+                    >
+                      {move}
+                    </button>
+                  );
+                })}
+              </div>
             ))
           )}
         </div>
