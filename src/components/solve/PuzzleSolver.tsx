@@ -294,15 +294,35 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   );
 
   const playOpponentMove = useCallback(
-    (targetIndex: number, fenState: string, activeLine: string[]) => {
+    (
+      targetIndex: number,
+      fenState: string,
+      activeLine: string[],
+      currentHistory: string[],
+      currentMatchingLines: string[][],
+      currentLastCorrectFen: string
+    ) => {
       const oppMoveStr = activeLine[targetIndex];
       if (!oppMoveStr) return;
 
       const oppResult = makeMoveString(fenState, oppMoveStr);
       if (oppResult) {
+        const snapshotBeforeOpponentMove: Snapshot = {
+          fen: fenState,
+          moveIndex: targetIndex,
+          matchingLines: currentMatchingLines,
+          status: 'CORRECT_STEP',
+          history: currentHistory,
+          lastCorrectFen: currentLastCorrectFen,
+        };
+
+        setPastSnapshots((prev) => [...prev, snapshotBeforeOpponentMove]);
+        setFutureSnapshots([]);
+
+        const updatedHistory = [...currentHistory, oppResult.san];
         setCurrentFen(oppResult.newFen);
         setLastCorrectFen(oppResult.newFen);
-        setHistory((prev) => [...prev, oppResult.san]);
+        setHistory(updatedHistory);
         setHighlightedSquares({
           [oppResult.from]: { backgroundColor: 'rgba(234, 179, 8, 0.4)' },
           [oppResult.to]: { backgroundColor: 'rgba(234, 179, 8, 0.5)' },
@@ -324,14 +344,32 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
   );
 
   const playStockfishReply = useCallback(
-    async (fenState: string) => {
+    async (
+      fenState: string,
+      currentHistory: string[],
+      currentMoveIndex: number,
+      currentMatchingLines: string[][],
+      currentLastCorrectFen: string
+    ) => {
       try {
         const line = await evaluatePosition(fenState, 12);
         if (line && line.bestMove) {
           const res = makeMoveString(fenState, line.bestMove);
           if (res) {
+            const snapshotBeforeStockfish: Snapshot = {
+              fen: fenState,
+              moveIndex: currentMoveIndex,
+              matchingLines: currentMatchingLines,
+              status: 'FREE_PLAY',
+              history: currentHistory,
+              lastCorrectFen: currentLastCorrectFen,
+            };
+
+            setPastSnapshots((prev) => [...prev, snapshotBeforeStockfish]);
+            setFutureSnapshots([]);
+
             setCurrentFen(res.newFen);
-            setHistory((prev) => [...prev, res.san]);
+            setHistory([...currentHistory, res.san]);
             setHighlightedSquares({
               [res.from]: { backgroundColor: 'rgba(56, 189, 248, 0.4)' },
               [res.to]: { backgroundColor: 'rgba(56, 189, 248, 0.5)' },
@@ -367,11 +405,12 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       setPastSnapshots(prev => [...prev, { fen: currentFen, moveIndex, matchingLines, status, history, lastCorrectFen }]);
       setFutureSnapshots([]);
 
+      const freeHistory = [...history, result.san];
       setCurrentFen(result.newFen);
-      setHistory((prev) => [...prev, result.san]);
+      setHistory(freeHistory);
       setHighlightedSquares({});
       opponentTimeoutRef.current = setTimeout(() => {
-        playStockfishReply(result.newFen);
+        playStockfishReply(result.newFen, freeHistory, moveIndex, matchingLines, lastCorrectFen);
       }, 400);
       return true;
     }
@@ -401,7 +440,7 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       setHistory(newHistory);
       setHighlightedSquares({});
       opponentTimeoutRef.current = setTimeout(() => {
-        playStockfishReply(result.newFen);
+        playStockfishReply(result.newFen, newHistory, moveIndex, matchingLines, lastCorrectFen);
       }, 400);
       return true;
     }
@@ -425,7 +464,14 @@ export function PuzzleSolver({ puzzle }: PuzzleSolverProps) {
       setMoveIndex(nextIndex);
       // Play opponent's reply automatically after 400ms using the chosen line
       opponentTimeoutRef.current = setTimeout(() => {
-        playOpponentMove(nextIndex, result.newFen, chosenLine);
+        playOpponentMove(
+          nextIndex,
+          result.newFen,
+          chosenLine,
+          newHistory,
+          nextMatchingLines,
+          result.newFen
+        );
       }, 400);
     }
 
