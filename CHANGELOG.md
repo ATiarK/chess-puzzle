@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-08-09
+
+### Added
+- **Clickable Move History:** The move history strip below the puzzle is now interactive! Moves are grouped into full moves (e.g. `1. e4 e5`). You can click any move to instantly rewind the board to that state. Undone moves are displayed grayed-out, allowing you to easily click forward (redo) as well.
+
 ## [0.2.0] - 2026-08-09
 
 ### Added

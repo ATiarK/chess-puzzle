@@ -14,7 +14,10 @@ A premium, interactive web application for creating, analyzing, and sharing tact
   - One-click **"Adopt Engine Move"** to record tactical solutions instantly or play moves manually.
 - **🌍 Public Anonymous Solver (`/solve/[id]`)**:
   - No login required to solve puzzles!
-  - Animated feedback banners (Emerald glow for correct moves, Ruby shake for wrong moves with an instant "Try Again" retry loop).
+  - **Tap-to-Move Mechanics**: Smooth tap or drag-and-drop piece movement.
+  - **Undo, Redo, & Clickable History**: Fully interactive timeline allows you to click past moves or use icon controls to back out of variations without resetting.
+  - **Multi-line Solution Support**: Puzzles gracefully accept alternative valid solutions provided by the creator.
+  - Animated feedback banners (Emerald glow for correct moves, Free Play mode against Stockfish for wrong moves).
   - Multi-move sequence support with automatic 400ms opponent reply execution.
   - Celebratory **Victory Modal** with trophy badge and "Solve Another" / "Create Your Own" viral loop links.
 - **📚 Personal Creator Library (`/dashboard`)**:
@@ -89,12 +92,15 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 The Drizzle ORM schema (`src/db/schema.ts`) defines the `puzzles` table:
 
 - `id`: UUID (Primary Key)
-- `creatorId`: Text (Clerk user ID, Indexed)
+- `creatorId`: Text (Clerk user ID)
 - `title`: Text (Puzzle title)
 - `fen`: Text (Starting position FEN)
 - `pgn`: Text (Optional PGN game source)
-- `solutionMoves`: JSONB array of SAN move strings (e.g., `["Qxh7+", "Kxh7", "Rh3#"]`)
+- `solutionMoves`: Text Array of SAN move strings (e.g., `["Qxh7+", "Kxh7", "Rh3#"]`)
+- `alternativeSolutions`: JSONB array of alternative string arrays for multiple valid solution variations
 - `difficulty`: Text (`Easy` | `Medium` | `Hard` | `Master`)
+- `preMoveFen`: Text (Optional starting FEN before the introductory opponent move)
+- `lastOpponentMove`: Text (Optional SAN of the introductory opponent move)
 - `createdAt` / `updatedAt`: Timestamp
 
 ---

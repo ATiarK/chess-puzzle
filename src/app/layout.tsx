@@ -9,7 +9,7 @@ import {
 } from '@clerk/nextjs';
 import Link from 'next/link';
 import { BoardThemeProvider } from '@/context/BoardThemeContext';
-import { Crown, Plus, Folder, LogIn } from 'lucide-react';
+import { Crown, Plus, Library, LogIn } from 'lucide-react';
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -65,7 +65,7 @@ export default function RootLayout({
                       aria-label="My Library"
                       className="text-slate-300 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
                     >
-                      <Folder className="w-5 h-5 md:hidden" />
+                      <Library className="w-5 h-5 md:hidden" />
                       <span className="hidden md:inline">My Library</span>
                     </Link>
                     <UserButton />
@@ -91,7 +91,7 @@ export default function RootLayout({
                         aria-label="My Library"
                         className="text-slate-300 hover:text-emerald-400 transition-colors flex items-center gap-1.5"
                       >
-                        <Folder className="w-5 h-5 md:hidden" />
+                        <Library className="w-5 h-5 md:hidden" />
                         <span className="hidden md:inline">My Library</span>
                       </button>
                     </SignInButton>
