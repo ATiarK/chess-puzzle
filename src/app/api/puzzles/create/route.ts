@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { puzzles } from '@/db/schema';
 import { validateFen } from '@/lib/chess/utils';
+import { generateShortId } from '@/lib/id';
 
 export async function POST(req: Request) {
   try {
@@ -32,6 +33,7 @@ export async function POST(req: Request) {
     const [newPuzzle] = await db
       .insert(puzzles)
       .values({
+        id: generateShortId(),
         creatorId: userId,
         title: title.trim(),
         fen,
