@@ -64,10 +64,11 @@ export function SolutionConfirmPanel({
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null);
   const [optionSquares, setOptionSquares] = useState<Record<string, React.CSSProperties>>({});
 
-  useEffect(() => {
+  const handleSwitchTab = (tab: 'solution' | 'intro') => {
     setSelectedSquare(null);
     setOptionSquares({});
-  }, [activeTab, activeLineIndex]);
+    setActiveTab(tab);
+  };
 
   // Automatically evaluate position whenever currentFen changes
   useEffect(() => {
@@ -210,6 +211,8 @@ export function SolutionConfirmPanel({
   };
 
   const handleSelectLineTab = (idx: number) => {
+    setSelectedSquare(null);
+    setOptionSquares({});
     setActiveLineIndex(idx);
     const history = lineFenHistories[idx] || [baseFen];
     setCurrentFen(history[history.length - 1]);
@@ -326,7 +329,7 @@ export function SolutionConfirmPanel({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab('solution')}
+              onClick={() => handleSwitchTab('solution')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${
                 activeTab === 'solution'
                   ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300'
@@ -339,7 +342,7 @@ export function SolutionConfirmPanel({
 
             <button
               type="button"
-              onClick={() => setActiveTab('intro')}
+              onClick={() => handleSwitchTab('intro')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 ${
                 activeTab === 'intro'
                   ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'

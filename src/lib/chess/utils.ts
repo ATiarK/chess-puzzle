@@ -301,7 +301,7 @@ export function suggestDifficultyFromEval(
 export function getPieceAt(fen: string, square: string): { type: string; color: 'white' | 'black' } | null {
   try {
     const chess = new Chess(fen);
-    const piece = chess.get(square as any);
+    const piece = chess.get(square as Parameters<typeof chess.get>[0]);
     if (!piece) return null;
     return {
       type: piece.type,
@@ -318,7 +318,7 @@ export function getPieceAt(fen: string, square: string): { type: string; color: 
 export function getLegalMovesForSquare(fen: string, square: string): string[] {
   try {
     const chess = new Chess(fen);
-    const moves = chess.moves({ square: square as any, verbose: true }) as Move[];
+    const moves = chess.moves({ square: square as Parameters<typeof chess.get>[0], verbose: true }) as Move[];
     return moves.map(m => m.to);
   } catch {
     return [];

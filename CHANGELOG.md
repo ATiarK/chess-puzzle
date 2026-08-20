@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-08-20
+
+### Added
+- **Short URL Identifiers**: Replaced long 36-character UUID URLs with clean, 8-character Base62 identifiers (`0-9, a-z, A-Z`) for fast and convenient link copying (e.g. `/solve/jk8lyidv`).
+- **Legacy UUID Backward Compatibility & Auto-Redirect**: Added `legacy_id` tracking in PostgreSQL. Any visitor accessing older, previously shared 36-character UUID links is automatically redirected via server-side HTTP 308 redirect to the new short URL.
+- **Database Migration Script**: Included `scripts/migrate-short-ids.ts` which migrated existing puzzles in the database to 8-character Base62 short IDs while preserving their old UUIDs in `legacy_id`.
+
 ## [0.3.1] - 2026-08-10
 
 ### Fixed

@@ -14,6 +14,8 @@ A premium, interactive web application for creating, analyzing, and sharing tact
   - One-click **"Adopt Engine Move"** to record tactical solutions instantly or play moves manually.
 - **🌍 Public Anonymous Solver (`/solve/[id]`)**:
   - No login required to solve puzzles!
+  - **Short Shareable URLs**: Puzzles use compact 8-character Base62 identifiers (e.g. `/solve/jk8lyidv`) for fast copying and sharing.
+  - **Seamless Legacy Redirects**: Older 36-character UUID links automatically 308-redirect to their modern short counterparts.
   - **Tap-to-Move Mechanics**: Smooth tap or drag-and-drop piece movement.
   - **Undo, Redo, & Clickable History**: Fully interactive timeline allows you to click past moves or use icon controls to back out of variations without resetting.
   - **Multi-line Solution Support**: Puzzles gracefully accept alternative valid solutions provided by the creator.
@@ -22,7 +24,7 @@ A premium, interactive web application for creating, analyzing, and sharing tact
   - Celebratory **Victory Modal** with trophy badge and "Solve Another" / "Create Your Own" viral loop links.
 - **📚 Personal Creator Library (`/dashboard`)**:
   - Authenticated creator dashboard displaying all saved puzzles in a responsive masonry grid with static FEN chessboard thumbnails.
-  - One-click **Share Link (`🔗`)** copying direct `/solve/[id]` URL with toast notification.
+  - One-click **Share Link (`🔗`)** copying direct short `/solve/[id]` URL with toast notification.
   - Inline title editing and puzzle deletion with ownership enforcement.
 - **🚀 Production-Ready & SEO Optimized**:
   - Dynamic OpenGraph metadata (`[Title] — Can you solve this chess puzzle?`).
@@ -91,7 +93,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 The Drizzle ORM schema (`src/db/schema.ts`) defines the `puzzles` table:
 
-- `id`: UUID (Primary Key)
+- `id`: VARCHAR(36) (Primary Key — 8-character Base62 string e.g. `jk8lyidv`)
 - `creatorId`: Text (Clerk user ID)
 - `title`: Text (Puzzle title)
 - `fen`: Text (Starting position FEN)
@@ -101,6 +103,7 @@ The Drizzle ORM schema (`src/db/schema.ts`) defines the `puzzles` table:
 - `difficulty`: Text (`Easy` | `Medium` | `Hard` | `Master`)
 - `preMoveFen`: Text (Optional starting FEN before the introductory opponent move)
 - `lastOpponentMove`: Text (Optional SAN of the introductory opponent move)
+- `legacyId`: Text (Optional previous 36-char UUID for automatic 308 redirection)
 - `createdAt` / `updatedAt`: Timestamp
 
 ---

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { redirect, RedirectType } from 'next/navigation';
 import { getPuzzleById } from '@/lib/puzzles';
 import { PuzzleSolver } from '@/components/solve/PuzzleSolver';
 import { AlertCircle } from 'lucide-react';
@@ -51,6 +52,11 @@ export default async function SolvePuzzlePage({ params }: SolvePageProps) {
         </Link>
       </div>
     );
+  }
+
+  // If accessed via legacy UUID, redirect to the official short URL
+  if (puzzle.id !== id) {
+    redirect(`/solve/${puzzle.id}`, RedirectType.replace);
   }
 
   return (
