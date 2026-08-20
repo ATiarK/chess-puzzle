@@ -1,13 +1,13 @@
 import { db } from '@/lib/db';
 import { puzzles, type Puzzle } from '@/db/schema';
-import { eq, ne, sql } from 'drizzle-orm';
+import { eq, or, ne, sql } from 'drizzle-orm';
 
 export async function getPuzzleById(id: string): Promise<Puzzle | null> {
   try {
     const [puzzle] = await db
       .select()
       .from(puzzles)
-      .where(eq(puzzles.id, id))
+      .where(or(eq(puzzles.id, id), eq(puzzles.legacyId, id)))
       .limit(1);
 
     return puzzle || null;
